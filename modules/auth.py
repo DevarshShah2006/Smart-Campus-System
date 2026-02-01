@@ -83,8 +83,6 @@ def login_user(conn):
 
 
 def render_auth(conn):
-    tab1, tab2 = st.tabs(["Login", "Student Registration"])
-    with tab1:
-        login_user(conn)
-    with tab2:
-        register_student(conn)
+    st.markdown("### 🔐 Smart Campus System Login")
+    st.markdown("---")
+    login_user(conn)
