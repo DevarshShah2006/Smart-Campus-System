@@ -1,0 +1,24 @@
+"filename", "language", "Markdown", "Python", "pip requirements", "comment", "blank", "total"
+"c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\README.md", "Markdown", 51, 0, 0, 0, 12, 63
+"c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\app.py", "Python", 0, 87, 0, 174, 10, 271
+"c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\core\db.py", "Python", 0, 60, 0, 159, 28, 247
+"c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\core\qr.py", "Python", 0, 11, 0, 0, 5, 16
+"c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\core\security.py", "Python", 0, 5, 0, 0, 5, 10
+"c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\core\utils.py", "Python", 0, 46, 0, 0, 25, 71
+"c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\modules\admin.py", "Python", 0, 171, 0, 20, 45, 236
+"c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\modules\analytics.py", "Python", 0, 66, 0, 0, 10, 76
+"c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\modules\attendance.py", "Python", 0, 178, 0, 276, 45, 499
+"c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\modules\auth.py", "Python", 0, 67, 0, 3, 19, 89
+"c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\modules\dashboard.py", "Python", 0, 29, 0, 0, 8, 37
+"c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\modules\events.py", "Python", 0, 40, 0, 3, 9, 52
+"c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\modules\feedback.py", "Python", 0, 27, 0, 3, 9, 39
+"c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\modules\issues.py", "Python", 0, 37, 0, 7, 9, 53
+"c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\modules\lost_found.py", "Python", 0, 28, 0, 3, 8, 39
+"c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\modules\notices.py", "Python", 0, 52, 0, 5, 13, 70
+"c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\modules\resources.py", "Python", 0, 44, 0, 3, 9, 56
+"c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\modules\schedule.py", "Python", 0, 27, 0, 0, 7, 34
+"c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\modules\search.py", "Python", 0, 33, 0, 0, 5, 38
+"c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\modules\settings.py", "Python", 0, 24, 0, 4, 10, 38
+"c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\requirements.txt", "pip requirements", 0, 0, 6, 0, 1, 7
+"c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\view_database.py", "Python", 0, 39, 0, 8, 12, 59
+"Total", "-", 51, 1071, 6, 668, 304, 2100

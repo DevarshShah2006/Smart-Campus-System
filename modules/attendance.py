@@ -1,308 +1,223 @@
 from __future__ import annotations
 
 from datetime import datetime
-            # JavaScript GPS capture button that sends value to Streamlit
-            location_value = st.components.v1.html(
-                """
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <style>
-                        body {
-                            margin: 0;
-                            padding: 10px;
-                            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-                        }
-                        #captureBtn {
-                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                            color: white;
-                            border: none;
-                            padding: 15px 30px;
-                            font-size: 16px;
-                            font-weight: bold;
-                            border-radius: 10px;
-                            cursor: pointer;
-                            width: 100%;
-                            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-                            transition: all 0.3s ease;
-                        }
-                        #captureBtn:hover:not(:disabled) {
-                            transform: translateY(-2px);
-                            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
-                        }
-                        #captureBtn:disabled {
-                            opacity: 0.6;
-                            cursor: not-allowed;
-                        }
-                        #captureBtn.success {
-                            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-                        }
-                        #status {
-                            margin-top: 10px;
-                            padding: 10px;
-                            border-radius: 5px;
-                            font-size: 14px;
-                            display: none;
-                        }
-                        #status.error {
-                            background: #fee;
-                            color: #c00;
-                            display: block;
-                        }
-                        #status.info {
-                            background: #e3f2fd;
-                            color: #1976d2;
-                            display: block;
-                        }
-                    </style>
-                </head>
-                <body>
-                    <button id=\"captureBtn\" onclick=\"getLocation()\">📍 Capture GPS Location</button>
-                    <div id=\"status\"></div>
-                    
-                    <script>
-                        function showStatus(message, type) {
-                            const status = document.getElementById('status');
-                            status.textContent = message;
-                            status.className = type;
-                        }
-                        
-                        function getLocation() {
-                            const btn = document.getElementById('captureBtn');
-                            
-                            if (!navigator.geolocation) {
-                                showStatus('❌ Geolocation is not supported by your browser', 'error');
-                                return;
-                            }
-                            
-                            btn.disabled = true;
-                            btn.textContent = '⏳ Getting location...';
-                            showStatus('📡 Requesting GPS location...', 'info');
-                            
-                            const options = {
-                                enableHighAccuracy: true,
-                                timeout: 10000,
-                                maximumAge: 0
-                            };
-                            
-                            navigator.geolocation.getCurrentPosition(
-                                function(position) {
-                                    const lat = position.coords.latitude;
-                                    const lon = position.coords.longitude;
-                                    const acc = position.coords.accuracy;
-                                    
-                                    btn.textContent = '✅ Location Captured!';
-                                    btn.className = 'success';
-                                    showStatus('✅ Success! Updating...', 'info');
-                                    
-                                    // Send value to Streamlit and request rerun
-                                    const payload = { lat: String(lat), lon: String(lon), acc: String(acc) };
-                                    try {
-                                        window.parent.postMessage({ type: 'streamlit:setComponentValue', value: payload }, '*');
-                                        window.parent.postMessage({ type: 'streamlit:requestRerun' }, '*');
-                                    } catch (e) {
-                                        // Fallback: put in query params
-                                        const url = new URL(window.location.href);
-                                        url.searchParams.set('t_lat', lat);
-                                        url.searchParams.set('t_lon', lon);
-                                        url.searchParams.set('t_acc', acc);
-                                        window.location.href = url.toString();
-                                    }
-                                },
-                                function(error) {
-                                    btn.disabled = false;
-                                    btn.textContent = '📍 Retry Capture Location';
-                                    
-                                    let errorMsg = '❌ ';
-                                    switch(error.code) {
-                                        case error.PERMISSION_DENIED:
-                                            errorMsg += 'Permission denied. Please allow location access in browser settings.';
-                                            break;
-                                        case error.POSITION_UNAVAILABLE:
-                                            errorMsg += 'Location unavailable. Please check your device settings.';
-                                            break;
-                                        case error.TIMEOUT:
-                                            errorMsg += 'Location request timed out. Please try again.';
-                                            break;
-                                        default:
-                                            errorMsg += 'An unknown error occurred: ' + error.message;
-                                    }
-                                    showStatus(errorMsg, 'error');
-                                },
-                                options
-                            );
-                        }
-                    </script>
-                </body>
-                </html>
-                """,
-                height=170,
-            )
+from uuid import uuid4
+import sqlite3
 
-            # If the component sent a value, persist it and rerun
-            if location_value:
-                try:
-                    import json as _json
-                    data = location_value
-                    if isinstance(location_value, str):
-                        data = _json.loads(location_value)
-                    lat = float(data.get('lat', 0.0))
-                    lon = float(data.get('lon', 0.0))
-                    acc = float(data.get('acc', 0.0))
-                    if lat and lon:
-                        st.session_state.teacher_latitude = lat
-                        st.session_state.teacher_longitude = lon
-                        st.session_state.teacher_accuracy = acc
-                        st.experimental_rerun() if hasattr(st, 'experimental_rerun') else st.rerun()
-                except Exception:
-                    pass
-            st.stop()  # Stop rendering if location not captured
-                    st.rerun()
-        else:
-            st.info("🌍 Click the button below to automatically capture your current GPS location")
+import streamlit as st
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from core.utils import haversine_distance, now_iso, parse_iso, add_minutes
+from core.qr import generate_qr
+
+
+# Initialize session state for GPS location
+st.session_state.setdefault("geo_location", None)
+
+# Check if location is in localStorage via JavaScript
+st.components.v1.html(
+    """
+    <script>
+    // Expose location data to Streamlit
+    const stored = localStorage.getItem('streamlit_geo_location');
+    if (stored) {
+        window.streamlit_geo_location = JSON.parse(stored);
+    }
+    </script>
+    """,
+    height=1,
+)
+
+
+def _get_query_params():
+    params = st.query_params
+    return params
+
+
+def _render_geolocation_block():
+    st.info("📍 Allow GPS access to confirm presence. No device fingerprinting is used.")
+    
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.markdown("### 📍 Capture Your Location")
+    with col2:
+        if st.button("🔄 Clear", key="clear_geo"):
+            st.session_state.geo_location = None
+            # Clear query params
+            st.query_params.clear()
+            st.rerun()
+    
+    # HTML component with location capture using Streamlit's session communication
+    st.components.v1.html(
+        """
+        <div style="padding: 16px; background: rgba(76, 175, 80, 0.1); border-radius: 8px; border: 2px solid #4CAF50;">
+            <button id="geoBtn" onclick="captureLocation()" style="padding: 12px 24px; font-size: 16px; background: #4CAF50; color: white; border: none; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold;">
+                📍 Get GPS Location
+            </button>
+            <div id="status" style="margin-top: 12px; font-size: 14px; color: #666; text-align: center;"></div>
+        </div>
+        
+        <script>
+        function captureLocation(){
+            const btn = document.getElementById('geoBtn');
+            const status = document.getElementById('status');
             
-            # JavaScript GPS capture button
-            st.components.v1.html(
-                """
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <style>
-                        body {
-                            margin: 0;
-                            padding: 10px;
-                            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-                        }
-                        #captureBtn {
-                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                            color: white;
-                            border: none;
-                            padding: 15px 30px;
-                            font-size: 16px;
-                            font-weight: bold;
-                            border-radius: 10px;
-                            cursor: pointer;
-                            width: 100%;
-                            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-                            transition: all 0.3s ease;
-                        }
-                        #captureBtn:hover:not(:disabled) {
-                            transform: translateY(-2px);
-                            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
-                        }
-                        #captureBtn:disabled {
-                            opacity: 0.6;
-                            cursor: not-allowed;
-                        }
-                        #captureBtn.success {
-                            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-                        }
-                        #status {
-                            margin-top: 10px;
-                            padding: 10px;
-                            border-radius: 5px;
-                            font-size: 14px;
-                            display: none;
-                        }
-                        #status.error {
-                            background: #fee;
-                            color: #c00;
-                            display: block;
-                        }
-                        #status.info {
-                            background: #e3f2fd;
-                            color: #1976d2;
-                            display: block;
-                        }
-                    </style>
-                </head>
-                <body>
-                    <button id="captureBtn" onclick="getLocation()">📍 Capture GPS Location</button>
-                    <div id="status"></div>
+            if (!navigator.geolocation) {
+                status.innerHTML = '❌ Geolocation not supported';
+                status.style.color = 'red';
+                return;
+            }
+            
+            btn.disabled = true;
+            btn.innerHTML = '📍 Getting Location...';
+            status.innerHTML = '⏳ Acquiring GPS...';
+            status.style.color = '#666';
+            
+            navigator.geolocation.getCurrentPosition(
+                function(pos) {
+                    const data = {
+                        lat: pos.coords.latitude,
+                        lon: pos.coords.longitude,
+                        acc: pos.coords.accuracy
+                    };
                     
-                    <script>
-                        function showStatus(message, type) {
-                            const status = document.getElementById('status');
-                            status.textContent = message;
-                            status.className = type;
-                        }
-                        
-                        function getLocation() {
-                            const btn = document.getElementById('captureBtn');
-                            
-                            if (!navigator.geolocation) {
-                                showStatus('❌ Geolocation is not supported by your browser', 'error');
-                                return;
-                            }
-                            
-                            btn.disabled = true;
-                            btn.textContent = '⏳ Getting location...';
-                            showStatus('📡 Requesting GPS location...', 'info');
-                            
-                            const options = {
-                                enableHighAccuracy: true,
-                                timeout: 10000,
-                                maximumAge: 0
-                            };
-                            
-                            navigator.geolocation.getCurrentPosition(
-                                function(position) {
-                                    const lat = position.coords.latitude;
-                                    const lon = position.coords.longitude;
-                                    const acc = position.coords.accuracy;
-                                    
-                                    btn.textContent = '✅ Location Captured!';
-                                    btn.className = 'success';
-                                    showStatus('✅ Success! Redirecting...', 'info');
-                                    
-                                    // Send coords to Streamlit and request rerun
-                                    try {
-                                        window.parent.postMessage({
-                                            type: 'streamlit:setQueryParams',
-                                            queryParams: { t_lat: String(lat), t_lon: String(lon), t_acc: String(acc) }
-                                        }, '*');
-                                        window.parent.postMessage({ type: 'streamlit:requestRerun' }, '*');
-                                    } catch (e) {
-                                        // Fallback: update URL directly
-                                        const url = new URL(window.location.href);
-                                        url.searchParams.set('t_lat', lat);
-                                        url.searchParams.set('t_lon', lon);
-                                        url.searchParams.set('t_acc', acc);
-                                        window.location.href = url.toString();
-                                    }
-                                },
-                                function(error) {
-                                    btn.disabled = false;
-                                    btn.textContent = '📍 Retry Capture Location';
-                                    
-                                    let errorMsg = '❌ ';
-                                    switch(error.code) {
-                                        case error.PERMISSION_DENIED:
-                                            errorMsg += 'Permission denied. Please allow location access in browser settings.';
-                                            break;
-                                        case error.POSITION_UNAVAILABLE:
-                                            errorMsg += 'Location unavailable. Please check your device settings.';
-                                            break;
-                                        case error.TIMEOUT:
-                                            errorMsg += 'Location request timed out. Please try again.';
-                                            break;
-                                        default:
-                                            errorMsg += 'An unknown error occurred: ' + error.message;
-                                    }
-                                    showStatus(errorMsg, 'error');
-                                },
-                                options
-                            );
-                        }
-                    </script>
-                </body>
-                </html>
-                """,
-                height=150,
-            )
-            st.stop()  # Stop rendering if location not captured
+                    // Store in localStorage
+                    localStorage.setItem('streamlit_geo_location', JSON.stringify(data));
+                    
+                    status.innerHTML = `✅ Location captured!<br>Lat: ${data.lat.toFixed(6)}<br>Lon: ${data.lon.toFixed(6)}<br>Accuracy: ${data.acc.toFixed(1)}m`;
+                    status.style.color = 'green';
+                    btn.innerHTML = '✅ Location Captured';
+                    btn.style.background = '#2196F3';
+                    
+                    // Add to URL params and reload
+                    const params = new URLSearchParams(window.parent.location.search);
+                    params.set('geo_lat', data.lat);
+                    params.set('geo_lon', data.lon);
+                    params.set('geo_acc', data.acc);
+                    window.parent.location.search = params.toString();
+                },
+                function(err) {
+                    status.innerHTML = '❌ ' + err.message;
+                    status.style.color = 'red';
+                    btn.disabled = false;
+                    btn.innerHTML = '📍 Try Again';
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        }
+        
+        // Check if location was stored
+        window.addEventListener('load', function() {
+            const params = new URLSearchParams(window.parent.location.search);
+            if (params.has('geo_lat')) {
+                const status = document.getElementById('status');
+                status.innerHTML = `✅ Location: ${parseFloat(params.get('geo_lat')).toFixed(6)}, ${parseFloat(params.get('geo_lon')).toFixed(6)}`;
+                status.style.color = 'green';
+                document.getElementById('geoBtn').innerHTML = '✅ Location Captured';
+                document.getElementById('geoBtn').disabled = true;
+                document.getElementById('geoBtn').style.background = '#2196F3';
+            }
+        });
+        </script>
+        """,
+        height=180,
+    )
+
+
+def _get_geo_from_query():
+    if "geo_location" in st.session_state and st.session_state.geo_location:
+        geo = st.session_state.geo_location
+        lat = geo.get("lat")
+        lon = geo.get("lon")
+        acc = geo.get("acc")
+        if lat and lon and acc is not None:
+            return lat, lon, acc
+    return None
+
+
+def _attendance_status(lecture, distance_m: float) -> str:
+    now = datetime.utcnow()
+    start = parse_iso(lecture["start_time"])
+    end = parse_iso(lecture["end_time"])
+    late_after = add_minutes(start, int(lecture["late_after_min"]))
+
+    if now < start:
+        return "Rejected (Too Early)"
+    if now > end:
+        return "Rejected (Closed)"
+
+    if distance_m <= lecture["radius_m"]:
+        return "Present" if now <= late_after else "Late"
+
+    return "Rejected (Out of Radius)"
+
+
+def _log_audit(conn, action: str, details: str, actor_id: int | None):
+    conn.execute(
+        "INSERT INTO audit_logs (action, details, actor_id, created_at) VALUES (?, ?, ?, ?)",
+        (action, details, actor_id, now_iso()),
+    )
+    conn.commit()
+
+
+def _get_setting(conn, key: str, default: float) -> float:
+    row = conn.execute("SELECT value FROM system_settings WHERE key = ?", (key,)).fetchone()
+    return float(row["value"]) if row else float(default)
+
+
+def render_teacher_attendance(conn, user):
+    st.title("✅ Attendance Management")
+    st.markdown("---")
+    
+    # Ensure session state is initialized
+    if "geo_location" not in st.session_state:
+        st.session_state.geo_location = None
+    
+    # Check for location in query params and populate session state
+    params = _get_query_params()
+    if params.get("geo_lat"):
+        try:
+            st.session_state.geo_location = {
+                "lat": float(params.get("geo_lat")),
+                "lon": float(params.get("geo_lon")),
+                "acc": float(params.get("geo_acc"))
+            }
+        except (ValueError, TypeError):
+            pass
+    
+    tab1, tab2 = st.tabs(["📝 Create New Session", "📋 View Sessions"])
+    
+    with tab1:
+        st.subheader("Create Lecture Session")
+        default_radius = _get_setting(conn, "radius_m", 40)
+        default_late = int(_get_setting(conn, "late_after_min", 10))
+        default_duration = int(_get_setting(conn, "time_window_min", 60))
+
+        st.info("📍 You must be physically present at the classroom. GPS location will be verified.")
+        
+        # GPS Location capture
+        _render_geolocation_block()
+        
+        # Display captured location
+        geo = st.session_state.get("geo_location")
+        if geo:
+            lat = geo.get("lat")
+            lon = geo.get("lon")
+            acc = geo.get("acc")
+            
+            st.success("✅ Location verified! You can now create a session.")
+            with st.expander("📍 Location Details", expanded=False):
+                col1, col2, col3 = st.columns(3)
+                col1.metric("📍 Latitude", f"{lat:.6f}")
+                col2.metric("📍 Longitude", f"{lon:.6f}")
+                col3.metric("📡 Accuracy", f"{acc:.1f}m")
+        else:
+            st.error("❌ GPS location not captured yet. Please click the button above to capture your location.")
+            return
 
         with st.form("lecture_form"):
+            st.markdown("### 📋 Lecture Details")
             col1, col2 = st.columns(2)
             
             with col1:
@@ -316,19 +231,13 @@ from datetime import datetime
                 late_after_min = st.number_input("⏳ Late After (minutes)", min_value=0, max_value=30, value=default_late)
                 radius_m = st.slider("📍 Allowed Radius (meters)", min_value=10, max_value=100, value=int(default_radius))
             
-            # Hidden fields to store captured location
-            if st.session_state.teacher_latitude != 0.0 and st.session_state.teacher_longitude != 0.0:
-                st.caption(f"📍 Using GPS Location: {st.session_state.teacher_latitude:.6f}, {st.session_state.teacher_longitude:.6f}")
+            st.info("💡 Session will be created at your current GPS location. Students must be within the radius to mark attendance.")
             
             submitted = st.form_submit_button("🚀 Create Session & Generate QR", use_container_width=True, type="primary")
 
         if submitted:
             if not (subject and room):
                 st.error("❌ Subject and room are required.")
-                return
-            
-            if st.session_state.teacher_latitude == 0.0 or st.session_state.teacher_longitude == 0.0:
-                st.error("❌ Please capture your GPS location first using the button above!")
                 return
 
             start_dt = datetime.combine(date, start_time)
@@ -347,8 +256,8 @@ from datetime import datetime
                     room,
                     start_dt.isoformat(),
                     end_dt.isoformat(),
-                    st.session_state.teacher_latitude,
-                    st.session_state.teacher_longitude,
+                    lat,
+                    lon,
                     radius_m,
                     int(late_after_min),
                     now_iso(),
@@ -362,7 +271,34 @@ from datetime import datetime
             col1, col2 = st.columns(2)
             
             with col1:
-                base_url = st.text_input("📱 Attendance URL Base", value="http://localhost:8501", help="Change to your PC's IP for mobile access")
+                base_url = st.text_input("📱 Attendance URL Base", value="http://localhost:8502", help="Change to your PC's IP for mobile access")
+                attendance_url = f"{base_url}/?session_id={session_id}"
+                
+                st.markdown("### 📱 QR Code")
+                qr_path = generate_qr(attendance_url)
+                st.image(str(qr_path), caption=f"Scan to mark attendance for {subject}", width=300)
+            
+            with col2:
+                st.markdown("### 🔗 Direct Link")
+                st.code(attendance_url, language="text")
+                st.markdown(f"""
+                **Session Details:**
+                - 📚 Subject: {subject}
+                - 🏫 Room: {room}
+                - 📅 Date: {date}
+                - ⏰ Time: {start_time} - {end_dt.time()}
+                - 📍 Radius: {radius_m}m
+                - ⏳ Late after: {late_after_min} min
+                """)
+
+            
+            st.success(f"✅ Lecture session created: **{session_id}**")
+            st.balloons()
+
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                base_url = st.text_input("📱 Attendance URL Base", value="http://localhost:8502", help="Change to your PC's IP for mobile access")
                 attendance_url = f"{base_url}/?session_id={session_id}"
                 
                 st.markdown("### 📱 QR Code")
@@ -436,6 +372,9 @@ from datetime import datetime
 def render_student_attendance(conn, user):
     st.title("✅ Mark Attendance")
     st.markdown("---")
+    
+    # Ensure session state is initialized
+    st.session_state.setdefault("attendance_lock", set())
 
     params = _get_query_params()
     session_id = params.get("session_id", "")
@@ -497,8 +436,8 @@ def render_student_attendance(conn, user):
     
     st.markdown("---")
 
-    if "attendance_lock" not in st.session_state:
-        st.session_state.attendance_lock = set()
+    # Ensure session state initialized
+    st.session_state.setdefault("attendance_lock", set())
 
     # Check if already marked
     existing = conn.execute(
