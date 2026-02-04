@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from datetime import datetime
 from uuid import uuid4
@@ -47,43 +47,47 @@ if "gps_message" not in st.session_state:
 
 
 def _get_query_params():
-    params = st.query_params
-    return params
+    try:
+        return dict(st.query_params)
+    except Exception:
+        return {}
 
 
 def _render_geolocation_block(use_mock=False):
-    """Render GPS capture UI with postMessage for reliable sync"""
-    
+    """Render GPS capture UI (HTML component)"""
+
     col1, col2, col3 = st.columns([2, 1, 1])
     with col1:
-        st.markdown("### 📍 Capture Your Location")
+        st.markdown("### Capture Your Location")
     with col2:
-        if st.button("🎭 Use Mock GPS", key="mock_gps", help="For testing without real GPS"):
+        if st.button("Use Mock GPS", key="mock_gps", help="For testing without real GPS"):
             # Mock GPS coordinates (somewhere reasonable)
             st.session_state.geo_location = {
                 "lat": 23.0225,  # Example: Ahmedabad
                 "lon": 72.5714,
                 "acc": 10.0,
-                "source": "mock"
+                "source": "mock",
             }
-            st.success("🎭 Mock GPS enabled for demo!")
+            st.success("Mock GPS enabled for demo!")
             st.rerun()
     with col3:
-        if st.button("🔄 Clear", key="clear_geo"):
+        if st.button("Clear", key="clear_geo"):
             st.session_state.geo_location = None
-            st.query_params.clear()
+            try:
+                st.query_params.clear()
+            except Exception:
+                pass
             st.rerun()
-    
-    # NEW: Improved GPS Capture using postMessage (more reliable)
+
     st.components.v1.html(
         """
         <div style="padding: 16px; background: rgba(76, 175, 80, 0.1); border-radius: 8px; border: 2px solid #4CAF50;">
-            <button id="geoBtn" onclick="captureLocation()" style="padding: 12px 24px; font-size: 16px; background: #4CAF50; color: white; border: none; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold;">
-                📍 Get Real GPS Location
+            <button id="geoBtn" style="padding: 12px 24px; font-size: 16px; background: #4CAF50; color: white; border: none; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold;">
+                Get Real GPS Location
             </button>
             <div id="status" style="margin-top: 12px; font-size: 14px; color: #666; text-align: center;"></div>
             <div id="help" style="margin-top: 8px; font-size: 12px; color: #888; text-align: center;">
-                💡 If GPS fails: Use "Mock GPS" button above or enter coordinates manually below
+                If GPS fails: Use "Mock GPS" button above or enter coordinates manually below
             </div>
         </div>
         
@@ -93,24 +97,14 @@ def _render_geolocation_block(use_mock=False):
             const status = document.getElementById('status');
             
             if (!navigator.geolocation) {
-                status.innerHTML = '❌ Geolocation not supported by your browser';
+                status.textContent = 'Geolocation not supported by your browser';
                 status.style.color = 'red';
                 return;
             }
 
-            // Security check
-            const isSecure = window.location.protocol === 'https:' || 
-                           window.location.hostname === 'localhost' || 
-                           window.location.hostname === '127.0.0.1';
-            
-            if (!isSecure) {
-                status.innerHTML = '⚠️ <b>Warning:</b> GPS may be blocked on HTTP. Use Mock GPS or HTTPS instead.';
-                status.style.color = 'orange';
-            }
-            
             btn.disabled = true;
-            btn.innerHTML = '📍 Getting Location...';
-            status.innerHTML = '⏳ Requesting GPS permission...';
+            btn.textContent = 'Getting Location...';
+            status.textContent = 'Requesting GPS permission...';
             status.style.color = '#666';
             
             navigator.geolocation.getCurrentPosition(
@@ -122,47 +116,35 @@ def _render_geolocation_block(use_mock=False):
                         source: 'real'
                     };
                     
-                    status.innerHTML = `✅ GPS Captured!<br>📍 Lat: ${data.lat.toFixed(6)}<br>📍 Lon: ${data.lon.toFixed(6)}<br>🎯 Accuracy: ${data.acc.toFixed(1)}m`;
+                    status.innerHTML = `GPS Captured!<br>Lat: ${data.lat.toFixed(6)}<br>Lon: ${data.lon.toFixed(6)}<br>Accuracy: ${data.acc.toFixed(1)}m`;
                     status.style.color = 'green';
-                    btn.innerHTML = '✅ GPS Captured';
+                    btn.textContent = 'GPS Captured';
                     btn.style.background = '#2196F3';
                     
-                    // Send to Streamlit using postMessage (RELIABLE method)
-                    try {
-                        window.parent.postMessage({
-                            type: 'streamlit:setComponentValue',
-                            key: 'gps_data',
-                            value: data
-                        }, '*');
-                        
-                        // Also update URL params as backup
-                        const loc = window.top.location || window.parent.location;
-                        const params = new URLSearchParams(loc.search);
-                        params.set('geo_lat', data.lat);
-                        params.set('geo_lon', data.lon);
-                        params.set('geo_acc', data.acc);
-                        params.set('_t', Date.now());
-                        
-                        setTimeout(() => {
-                            loc.href = loc.origin + loc.pathname + '?' + params.toString();
-                        }, 500);
-                    } catch(e) {
-                        console.error('PostMessage error:', e);
-                        status.innerHTML += '<br>⚠️ Click "🔄 Use Captured GPS" button below to sync.';
-                    }
+                    // Update URL params so Streamlit can sync on rerun
+                    const loc = (window.top && window.top.location) ? window.top.location : window.parent.location;
+                    const params = new URLSearchParams(loc.search);
+                    params.set('geo_lat', data.lat);
+                    params.set('geo_lon', data.lon);
+                    params.set('geo_acc', data.acc);
+                    params.set('_t', Date.now());
+                    setTimeout(() => {
+                        loc.search = params.toString();
+                    }, 200);
                 },
                 function(err) {
-                    status.innerHTML = `❌ GPS Error: ${err.message}<br>💡 Try "Mock GPS" button instead`;
+                    status.textContent = `GPS Error: ${err.message}`;
                     status.style.color = 'red';
                     btn.disabled = false;
-                    btn.innerHTML = '📍 Try Again';
+                    btn.textContent = 'Try Again';
                 },
                 { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
             );
         }
+        document.getElementById('geoBtn').addEventListener('click', captureLocation);
         </script>
         """,
-        height=200,
+        height=220,
     )
 
 
@@ -242,9 +224,13 @@ def render_teacher_attendance(conn, user):
         
         # Sync GPS from URL (robust for both list/str values)
         _sync_geo_from_url()
-        
+
         # Render GPS capture component
         _render_geolocation_block()
+
+        # Sync again after component updates URL (ensures values get picked up)
+        if not st.session_state.geo_location:
+            _sync_geo_from_url()
         
         # Fallback control to force sync if rerun timing misses
         params = _get_query_params()
@@ -264,13 +250,28 @@ def render_teacher_attendance(conn, user):
             if lat_dbg and lon_dbg and not st.session_state.geo_location:
                 st.caption(f"GPS in URL → lat={lat_dbg}, lon={lon_dbg} (sync needed)")
         
+        # Manual entry fallback (always available)
+        with st.expander("Manual GPS Entry", expanded=not bool(st.session_state.geo_location)):
+            m_lat = st.number_input("Manual Latitude", value=0.0, format="%.6f", key="teacher_manual_lat")
+            m_lon = st.number_input("Manual Longitude", value=0.0, format="%.6f", key="teacher_manual_lon")
+            m_acc = st.number_input("Manual Accuracy (m)", min_value=0.0, value=10.0, key="teacher_manual_acc")
+            if st.button("Use Manual Coordinates", help="Use these coordinates if GPS fails"):
+                if m_lat == 0.0 and m_lon == 0.0:
+                    st.warning("Please enter valid coordinates.")
+                else:
+                    st.session_state.geo_location = {"lat": m_lat, "lon": m_lon, "acc": m_acc, "source": "manual"}
+                    st.success("Manual coordinates saved.")
+                    st.rerun()
+
         # Show location if captured
         if st.session_state.geo_location:
             geo = st.session_state.geo_location
-            source_emoji = "🎭" if geo.get('source') == 'mock' else "🌍"
-            source_text = "Mock GPS (Demo Mode)" if geo.get('source') == 'mock' else "Real GPS"
-            st.success(f"✅ Location Captured! {source_emoji} {source_text}\n📍 Lat: {geo['lat']:.6f} | Lon: {geo['lon']:.6f} | Accuracy: {geo['acc']:.1f}m")
-            
+            source_emoji = "🎭" if geo.get("source") == "mock" else "🌍"
+            source_text = "Mock GPS (Demo Mode)" if geo.get("source") == "mock" else "Real GPS"
+            st.success(
+                f"✅ Location Captured! {source_emoji} {source_text}\n📍 Lat: {geo['lat']:.6f} | Lon: {geo['lon']:.6f} | Accuracy: {geo['acc']:.1f}m"
+            )
+
             # Debug panel (can be collapsed)
             with st.expander("🔎 Debug: GPS + Params", expanded=False):
                 st.caption("Query params:")
@@ -280,156 +281,148 @@ def render_teacher_attendance(conn, user):
                     st.code("<unavailable>")
                 st.caption("Session geo:")
                 st.code(str(st.session_state.geo_location))
-                
-                st.markdown("---")
-                st.markdown("**Manual Override**")
-                m_lat = st.number_input("Manual Lat", value=0.0, format="%.6f")
-                m_lon = st.number_input("Manual Lon", value=0.0, format="%.6f")
-                if st.button("Set Manual Coordinates", help="Use these coordinates if GPS fails"):
-                    st.session_state.geo_location = {"lat": m_lat, "lon": m_lon, "acc": 10.0}
-                    st.rerun()
-                
-                if st.button("🔄 Force Show Lecture Form", key="force_form"):
-                    st.session_state["force_show_form"] = True
-                    st.rerun()
-            
-            # STEP 2: Show lecture form if location captured
-            st.markdown("---")
-            st.markdown("### Step 2: Enter Lecture Details")
-            
-            default_radius = _get_setting(conn, "radius_m", 40)
-            default_late = int(_get_setting(conn, "late_after_min", 10))
-            default_duration = int(_get_setting(conn, "time_window_min", 60))
 
-            with st.form("lecture_form", clear_on_submit=False):
+        # STEP 2: Lecture form (always visible)
+        st.markdown("---")
+        st.markdown("### Step 2: Enter Lecture Details")
+
+        default_radius = _get_setting(conn, "radius_m", 40)
+        default_late = int(_get_setting(conn, "late_after_min", 10))
+        default_duration = int(_get_setting(conn, "time_window_min", 60))
+
+        with st.form("lecture_form", clear_on_submit=False):
+            col1, col2 = st.columns(2)
+
+            with col1:
+                subject = st.text_input("📚 Subject *", placeholder="e.g., Data Structures")
+                room = st.text_input("🏫 Room / Classroom *", placeholder="e.g., Lab 301")
+                date = st.date_input("📅 Lecture Date")
+                start_time = st.time_input("⏰ Start Time")
+
+            with col2:
+                duration_min = st.number_input("⏱️ Duration (minutes)", min_value=30, max_value=240, value=default_duration)
+                late_after_min = st.number_input("⏳ Late After (minutes)", min_value=0, max_value=30, value=default_late)
+                radius_m = st.slider("📍 Allowed Radius (meters)", min_value=10, max_value=100, value=int(default_radius))
+
+            st.info("💡 Session will be created at your current GPS location. Students must be within the radius to mark attendance.")
+
+            submitted = st.form_submit_button("🚀 Create Session & Generate QR", use_container_width=True, type="primary")
+
+        if submitted:
+            if not (subject and room):
+                st.error("❌ Subject and room are required.")
+                return
+
+            if not st.session_state.geo_location:
+                st.error("❌ Please capture GPS or enter manual coordinates before creating the session.")
+                return
+
+            try:
+                geo = st.session_state.geo_location
+                lat = geo["lat"]
+                lon = geo["lon"]
+
+                start_dt = datetime.combine(date, start_time)
+                end_dt = start_dt + pd.Timedelta(minutes=int(duration_min))
+                session_id = f"{subject[:4].upper()}-{uuid4().hex[:8]}"
+
+                # Insert into database
+                conn.execute(
+                    """
+                    INSERT INTO lectures (session_id, teacher_id, subject, room, start_time, end_time, latitude, longitude, radius_m, late_after_min, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        session_id,
+                        user["id"],
+                        subject,
+                        room,
+                        start_dt.isoformat(),
+                        end_dt.isoformat(),
+                        lat,
+                        lon,
+                        radius_m,
+                        int(late_after_min),
+                        now_iso(),
+                    ),
+                )
+                conn.commit()
+
+                st.success(f"✅ Lecture session created: **{session_id}**")
+                st.balloons()
+
+                # Display QR Code and details
                 col1, col2 = st.columns(2)
-                
+
                 with col1:
-                    subject = st.text_input("📚 Subject *", placeholder="e.g., Data Structures")
-                    room = st.text_input("🏫 Room / Classroom *", placeholder="e.g., Lab 301")
-                    date = st.date_input("📅 Lecture Date")
-                    start_time = st.time_input("⏰ Start Time")
-                
+                    st.markdown("### 📱 QR Code")
+                    # Auto-detect IP for mobile convenience
+                    default_ip = get_local_ip()
+                    default_url = f"http://{default_ip}:8502"
+
+                    base_url = st.text_input("📱 Attendance URL Base", value=default_url, help="Ensure this matches your PC's IP address")
+                    attendance_url = f"{base_url}/?session_id={session_id}"
+
+                    st.markdown("#### Generating QR Code...")
+                    try:
+                        qr_path = generate_qr(attendance_url)
+                        if qr_path and qr_path.exists():
+                            # Verify file is real and get file size
+                            file_size = qr_path.stat().st_size
+                            st.image(str(qr_path), caption=f"Scan to mark attendance for {subject}", width=300)
+                            st.success(f"✅ QR Code generated successfully!")
+
+                            # Show verification details
+                            with st.expander("🔍 QR Code Details", expanded=False):
+                                st.caption(f"📁 File Path: {qr_path}")
+                                st.caption(f"📊 File Size: {file_size} bytes")
+                                st.caption(f"✅ File Exists: True")
+                                st.caption(f"📍 URL Encoded: {attendance_url}")
+                        else:
+                            st.error("❌ QR file not found after generation")
+                    except Exception as e:
+                        st.error(f"❌ Error generating QR: {str(e)}")
+                        st.info(f"📱 Share this URL instead: {attendance_url}")
+
                 with col2:
-                    duration_min = st.number_input("⏱️ Duration (minutes)", min_value=30, max_value=240, value=default_duration)
-                    late_after_min = st.number_input("⏳ Late After (minutes)", min_value=0, max_value=30, value=default_late)
-                    radius_m = st.slider("📍 Allowed Radius (meters)", min_value=10, max_value=100, value=int(default_radius))
-                
-                st.info("💡 Session will be created at your current GPS location. Students must be within the radius to mark attendance.")
-                
-                submitted = st.form_submit_button("🚀 Create Session & Generate QR", use_container_width=True, type="primary")
+                    st.markdown("### 🔗 Direct Link")
+                    st.code(attendance_url, language="text")
 
-            if submitted or st.session_state.get("force_show_form"):
-                if not (subject and room):
-                    st.error("❌ Subject and room are required.")
-                    return
-
-                try:
-                    geo = st.session_state.geo_location
-                    lat = geo["lat"]
-                    lon = geo["lon"]
-                    
-                    start_dt = datetime.combine(date, start_time)
-                    end_dt = start_dt + pd.Timedelta(minutes=int(duration_min))
-                    session_id = f"{subject[:4].upper()}-{uuid4().hex[:8]}"
-
-                    # Insert into database
-                    conn.execute(
-                        """
-                        INSERT INTO lectures (session_id, teacher_id, subject, room, start_time, end_time, latitude, longitude, radius_m, late_after_min, created_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """,
-                        (
-                            session_id,
-                            user["id"],
-                            subject,
-                            room,
-                            start_dt.isoformat(),
-                            end_dt.isoformat(),
-                            lat,
-                            lon,
-                            radius_m,
-                            int(late_after_min),
-                            now_iso(),
-                        ),
-                    )
-                    conn.commit()
-                    
-                    st.success(f"✅ Lecture session created: **{session_id}**")
-                    st.balloons()
-
-                    # Display QR Code and details
-                    col1, col2 = st.columns(2)
-                    
-                    with col1:
-                        st.markdown("### 📱 QR Code")
-                        # Auto-detect IP for mobile convenience
-                        default_ip = get_local_ip()
-                        default_url = f"http://{default_ip}:8502"
-                        
-                        base_url = st.text_input("📱 Attendance URL Base", value=default_url, help="Ensure this matches your PC's IP address")
-                        attendance_url = f"{base_url}/?session_id={session_id}"
-                        
-                        st.markdown("#### Generating QR Code...")
+                    # Regenerate QR if needed
+                    if st.button("🔄 Regenerate QR", help="Generate a new QR code"):
                         try:
                             qr_path = generate_qr(attendance_url)
-                            if qr_path and qr_path.exists():
-                                # Verify file is real and get file size
+                            if qr_path.exists():
                                 file_size = qr_path.stat().st_size
-                                st.image(str(qr_path), caption=f"Scan to mark attendance for {subject}", width=300)
-                                st.success(f"✅ QR Code generated successfully!")
-                                
-                                # Show verification details
-                                with st.expander("🔍 QR Code Details", expanded=False):
-                                    st.caption(f"📁 File Path: {qr_path}")
-                                    st.caption(f"📊 File Size: {file_size} bytes")
-                                    st.caption(f"✅ File Exists: True")
-                                    st.caption(f"📍 URL Encoded: {attendance_url}")
+                                st.success(f"✅ QR regenerated! ({file_size} bytes)")
+                                st.rerun()
                             else:
-                                st.error("❌ QR file not found after generation")
+                                st.error("❌ QR generation failed")
                         except Exception as e:
-                            st.error(f"❌ Error generating QR: {str(e)}")
-                            st.info(f"📱 Share this URL instead: {attendance_url}")
-                    
-                    with col2:
-                        st.markdown("### 🔗 Direct Link")
-                        st.code(attendance_url, language="text")
-                        
-                        # Regenerate QR if needed
-                        if st.button("🔄 Regenerate QR", help="Generate a new QR code"):
-                            try:
-                                qr_path = generate_qr(attendance_url)
-                                if qr_path.exists():
-                                    file_size = qr_path.stat().st_size
-                                    st.success(f"✅ QR regenerated! ({file_size} bytes)")
-                                    st.rerun()
-                                else:
-                                    st.error("❌ QR generation failed")
-                            except Exception as e:
-                                st.error(f"Failed to regenerate: {e}")
-                        
-                        st.markdown(f"""
-                        **Session Details:**
-                        - 📚 Subject: {subject}
-                        - 🏫 Room: {room}
-                        - 📅 Date: {date}
-                        - ⏰ Time: {start_time} - {end_dt.time()}
-                        - 📍 Radius: {radius_m}m
-                        - ⏳ Late after: {late_after_min} min
-                        - 🌍 Location: ({lat:.6f}, {lon:.6f})
-                        """)
-                    
-                    # Reset helpers
-                    st.session_state["force_show_form"] = False
-                    # Keep geo for convenience; do not clear immediately
-                    # Clear URL params to avoid duplicate sync
-                    try:
-                        st.query_params.clear()
-                    except Exception:
-                        pass
-                    
-                except Exception as e:
-                    st.error(f"❌ Error creating session: {str(e)}")
+                            st.error(f"Failed to regenerate: {e}")
+
+                    st.markdown(f"""
+                    **Session Details:**
+                    - 📚 Subject: {subject}
+                    - 🏫 Room: {room}
+                    - 📅 Date: {date}
+                    - ⏰ Time: {start_time} - {end_dt.time()}
+                    - 📍 Radius: {radius_m}m
+                    - ⏳ Late after: {late_after_min} min
+                    - 🌍 Location: ({lat:.6f}, {lon:.6f})
+                    """)
+
+                # Reset helpers
+                st.session_state["force_show_form"] = False
+                # Keep geo for convenience; do not clear immediately
+                # Clear URL params to avoid duplicate sync
+                try:
+                    st.query_params.clear()
+                except Exception:
+                    pass
+
+            except Exception as e:
+                st.error(f"❌ Error creating session: {str(e)}")
     
     with tab2:
         st.subheader("📋 Recent Lecture Sessions")

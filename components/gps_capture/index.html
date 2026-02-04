@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GPS Capture</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: transparent;
+      }
+      .card {
+        padding: 16px;
+        border-radius: 8px;
+        border: 2px solid #4caf50;
+        background: rgba(76, 175, 80, 0.1);
+      }
+      #geoBtn {
+        width: 100%;
+        padding: 12px 24px;
+        font-size: 16px;
+        background: #4caf50;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: bold;
+      }
+      #status {
+        margin-top: 12px;
+        font-size: 14px;
+        color: #666;
+        text-align: center;
+      }
+      #help {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #888;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <button id="geoBtn">Get Real GPS Location</button>
+      <div id="status"></div>
+      <div id="help">If GPS fails, use Mock GPS or enter coordinates manually.</div>
+    </div>
+
+    <script>
+      function sendMessage(type, data) {
+        window.parent.postMessage(
+          Object.assign({ type: type }, data || {}),
+          "*"
+        );
+      }
+
+      sendMessage("streamlit:componentReady", { apiVersion: 1 });
+      sendMessage("streamlit:setFrameHeight", { height: 220 });
+
+      window.Streamlit = {
+        setComponentValue: function (value) {
+          sendMessage("streamlit:setComponentValue", { value: value });
+        },
+      };
+
+      function captureLocation() {
+        const btn = document.getElementById("geoBtn");
+        const status = document.getElementById("status");
+
+        if (!navigator.geolocation) {
+          status.textContent = "Geolocation not supported by your browser";
+          status.style.color = "red";
+          return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = "Getting Location...";
+        status.textContent = "Requesting GPS permission...";
+        status.style.color = "#666";
+
+        navigator.geolocation.getCurrentPosition(
+          function (pos) {
+            const data = {
+              lat: pos.coords.latitude,
+              lon: pos.coords.longitude,
+              acc: pos.coords.accuracy,
+              source: "real",
+            };
+
+            status.innerHTML =
+              "GPS Captured!<br>Lat: " +
+              data.lat.toFixed(6) +
+              "<br>Lon: " +
+              data.lon.toFixed(6) +
+              "<br>Accuracy: " +
+              data.acc.toFixed(1) +
+              "m";
+            status.style.color = "green";
+            btn.textContent = "GPS Captured";
+            btn.style.background = "#2196f3";
+
+            if (window.Streamlit && window.Streamlit.setComponentValue) {
+              window.Streamlit.setComponentValue(data);
+            }
+          },
+          function (err) {
+            status.textContent = "GPS Error: " + err.message;
+            status.style.color = "red";
+            btn.disabled = false;
+            btn.textContent = "Try Again";
+          },
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+        );
+      }
+
+      document.getElementById("geoBtn").addEventListener("click", captureLocation);
+    </script>
+  </body>
+</html>
