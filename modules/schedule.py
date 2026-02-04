@@ -29,5 +29,10 @@ def render_schedule(conn, user):
         st.info("No schedule entries yet.")
         return
 
-    df = pd.DataFrame(schedules)
-    st.dataframe(df[["day", "time", "subject", "room"]], use_container_width=True)
+    if schedules and hasattr(schedules[0], "keys"):
+        df = pd.DataFrame(schedules, columns=schedules[0].keys())
+    else:
+        df = pd.DataFrame(schedules)
+
+    display_cols = [c for c in ["day", "time", "subject", "room"] if c in df.columns]
+    st.dataframe(df[display_cols] if display_cols else df, use_container_width=True)

@@ -42,14 +42,37 @@ def render_resources(conn, user):
         st.info("No resources yet.")
         return
 
-    df = pd.DataFrame(records)
-    st.dataframe(df[["title", "subject", "file_path", "created_at"]], use_container_width=True)
+    # Build dataframe with safe columns whether rows are dict-like or tuples
+    if records and hasattr(records[0], "keys"):
+        df = pd.DataFrame(records, columns=records[0].keys())
+    else:
+        df = pd.DataFrame(records)
+
+    # Add separate date/time columns
+    if "created_at" in df.columns:
+        dt = pd.to_datetime(df["created_at"], errors="coerce")
+        df["date"] = dt.dt.date
+        df["time"] = dt.dt.strftime("%H:%M")
+
+    display_cols = [c for c in ["title", "subject", "date", "time"] if c in df.columns]
+    if user["role_id"] != 1 and "file_path" in df.columns:
+        display_cols.append("file_path")
+    st.dataframe(df[display_cols] if display_cols else df, use_container_width=True)
+
+    # Helper to read values from dict-like rows or tuples
+    def _row_get(row, key: str, idx: int):
+        if isinstance(row, dict) or hasattr(row, "keys"):
+            return row[key]
+        return row[idx]
+
     for row in records:
-        if Path(row["file_path"]).exists():
-            with open(row["file_path"], "rb") as f:
+        file_path = _row_get(row, "file_path", 3)
+        title = _row_get(row, "title", 1)
+        if Path(file_path).exists():
+            with open(file_path, "rb") as f:
                 st.download_button(
-                    label=f"Download {row['title']}",
+                    label=f"Download {title}",
                     data=f,
-                    file_name=Path(row["file_path"]).name,
+                    file_name=Path(file_path).name,
                     mime="application/octet-stream",
                 )

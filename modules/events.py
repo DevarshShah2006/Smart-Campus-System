@@ -34,11 +34,22 @@ def render_events(conn, user):
         st.info("No events yet.")
         return
 
-    df = pd.DataFrame(events)
-    st.dataframe(df[["id", "title", "event_date", "location"]], use_container_width=True)
+    if events and hasattr(events[0], "keys"):
+        df = pd.DataFrame(events, columns=events[0].keys())
+    else:
+        df = pd.DataFrame(events)
+
+    display_cols = [c for c in ["id", "title", "event_date", "location"] if c in df.columns]
+    st.dataframe(df[display_cols] if display_cols else df, use_container_width=True)
 
     if user["role_id"] == 1:
-        event_id = st.selectbox("Register for Event", [row["id"] for row in events])
+        if events and hasattr(events[0], "keys"):
+            event_ids = [row["id"] for row in events]
+        else:
+            # columns order: id, title, description, event_date, location, created_by, created_at
+            event_ids = [row[0] for row in events]
+
+        event_id = st.selectbox("Register for Event", event_ids)
         if st.button("Register"):
             try:
                 conn.execute(

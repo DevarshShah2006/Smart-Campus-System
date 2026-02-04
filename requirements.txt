@@ -4,3 +4,4 @@ matplotlib
 pandas
 qrcode
 pillow
+streamlit-js-eval

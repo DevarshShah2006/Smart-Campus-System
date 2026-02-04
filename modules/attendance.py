@@ -9,6 +9,8 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 
+from streamlit_js_eval import streamlit_js_eval
+
 from core.utils import haversine_distance, now_iso, parse_iso, add_minutes
 from core.qr import generate_qr
 
@@ -54,7 +56,7 @@ def _get_query_params():
 
 
 def _render_geolocation_block(use_mock=False):
-    """Render GPS capture UI (HTML component)"""
+    """Render GPS capture UI (streamlit-js-eval)"""
 
     col1, col2, col3 = st.columns([2, 1, 1])
     with col1:
@@ -79,73 +81,42 @@ def _render_geolocation_block(use_mock=False):
                 pass
             st.rerun()
 
-    st.components.v1.html(
-        """
-        <div style="padding: 16px; background: rgba(76, 175, 80, 0.1); border-radius: 8px; border: 2px solid #4CAF50;">
-            <button id="geoBtn" style="padding: 12px 24px; font-size: 16px; background: #4CAF50; color: white; border: none; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold;">
-                Get Real GPS Location
-            </button>
-            <div id="status" style="margin-top: 12px; font-size: 14px; color: #666; text-align: center;"></div>
-            <div id="help" style="margin-top: 8px; font-size: 12px; color: #888; text-align: center;">
-                If GPS fails: Use "Mock GPS" button above or enter coordinates manually below
-            </div>
-        </div>
-        
-        <script>
-        function captureLocation() {
-            const btn = document.getElementById('geoBtn');
-            const status = document.getElementById('status');
-            
-            if (!navigator.geolocation) {
-                status.textContent = 'Geolocation not supported by your browser';
-                status.style.color = 'red';
-                return;
-            }
+    st.session_state.setdefault("gps_request", False)
+    if st.button("Get Real GPS Location", key="real_gps"):
+        st.session_state.gps_request = True
 
-            btn.disabled = true;
-            btn.textContent = 'Getting Location...';
-            status.textContent = 'Requesting GPS permission...';
-            status.style.color = '#666';
-            
-            navigator.geolocation.getCurrentPosition(
-                function(pos) {
-                    const data = {
+    loc = None
+    if st.session_state.gps_request:
+        loc = streamlit_js_eval(
+            js_expressions="""
+            new Promise((resolve) => {
+                if (!navigator.geolocation) {
+                    resolve({ error: "Geolocation not supported by this browser." });
+                    return;
+                }
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => resolve({
                         lat: pos.coords.latitude,
                         lon: pos.coords.longitude,
                         acc: pos.coords.accuracy,
-                        source: 'real'
-                    };
-                    
-                    status.innerHTML = `GPS Captured!<br>Lat: ${data.lat.toFixed(6)}<br>Lon: ${data.lon.toFixed(6)}<br>Accuracy: ${data.acc.toFixed(1)}m`;
-                    status.style.color = 'green';
-                    btn.textContent = 'GPS Captured';
-                    btn.style.background = '#2196F3';
-                    
-                    // Update URL params so Streamlit can sync on rerun
-                    const loc = (window.top && window.top.location) ? window.top.location : window.parent.location;
-                    const params = new URLSearchParams(loc.search);
-                    params.set('geo_lat', data.lat);
-                    params.set('geo_lon', data.lon);
-                    params.set('geo_acc', data.acc);
-                    params.set('_t', Date.now());
-                    setTimeout(() => {
-                        loc.search = params.toString();
-                    }, 200);
-                },
-                function(err) {
-                    status.textContent = `GPS Error: ${err.message}`;
-                    status.style.color = 'red';
-                    btn.disabled = false;
-                    btn.textContent = 'Try Again';
-                },
-                { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-            );
-        }
-        document.getElementById('geoBtn').addEventListener('click', captureLocation);
-        </script>
-        """,
-        height=220,
-    )
+                        source: "real"
+                    }),
+                    (err) => resolve({ error: err && err.message ? err.message : "GPS permission denied or unavailable." })
+                );
+            })
+            """,
+            key="get_location"
+        )
+
+    if loc and isinstance(loc, dict) and "lat" in loc and "lon" in loc:
+        st.session_state.geo_location = loc
+        st.session_state.gps_request = False
+        st.success("GPS captured and synced to Python.")
+    elif st.session_state.gps_request and loc is not None:
+        if isinstance(loc, dict) and loc.get("error"):
+            st.warning(f"Could not read GPS: {loc['error']}")
+        else:
+            st.warning("Could not read GPS. Check browser permissions or use Mock/Manual GPS.")
 
 
 def _get_geo_from_query():
@@ -517,11 +488,14 @@ def render_student_attendance(conn, user):
             if history:
                 for record in history:
                     status_color = "green" if record[3] == "Present" else ("orange" if record[3] == "Late" else "red")
+                    ts = pd.to_datetime(record[4], errors="coerce")
+                    date_str = ts.strftime("%Y-%m-%d") if pd.notna(ts) else str(record[4])[:10]
+                    time_str = ts.strftime("%H:%M") if pd.notna(ts) else str(record[4])[11:16]
                     st.markdown(f"""
                     <div style='padding: 0.75rem; margin: 0.5rem 0; border-left: 4px solid {status_color}; background: rgba(255,255,255,0.05); border-radius: 4px;'>
                         <strong>{record[1]}</strong> - {record[2]}<br>
                         Status: <span style='color: {status_color};'>{record[3]}</span><br>
-                        <small>{record[4][:16]}</small>
+                        <small>{date_str} {time_str}</small>
                     </div>
                     """, unsafe_allow_html=True)
             else:

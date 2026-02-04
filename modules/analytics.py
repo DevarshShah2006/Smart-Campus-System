@@ -44,7 +44,10 @@ def render_analytics(conn):
     with tab3:
         data = conn.execute("SELECT category, status FROM issues").fetchall()
         if data:
-            df = pd.DataFrame(data)
+            if data and hasattr(data[0], "keys"):
+                df = pd.DataFrame(data, columns=data[0].keys())
+            else:
+                df = pd.DataFrame(data, columns=["category", "status"])
             pivot = df.pivot_table(index="category", columns="status", aggfunc="size", fill_value=0)
             fig, ax = plt.subplots()
             pivot.plot(kind="bar", ax=ax)

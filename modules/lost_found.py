@@ -7,6 +7,7 @@ from core.utils import now_iso
 def render_lost_found(conn, user):
     st.subheader("Lost & Found Portal")
 
+    # Allow students to post Lost or Found
     if user["role_id"] == 1:
         with st.form("lost_found_form"):
             item_type = st.selectbox("Type", ["Lost", "Found"])
@@ -34,5 +35,19 @@ def render_lost_found(conn, user):
         st.info("No posts yet.")
         return
 
-    df = pd.DataFrame(items)
-    st.dataframe(df[["id", "item_type", "title", "status", "created_at"]], use_container_width=True)
+    if items and hasattr(items[0], "keys"):
+        df = pd.DataFrame(items, columns=items[0].keys())
+    else:
+        df = pd.DataFrame(items)
+
+    # Show description/contact and separate date/time
+    if "created_at" in df.columns:
+        dt = pd.to_datetime(df["created_at"], errors="coerce")
+        df["date"] = dt.dt.date
+        df["time"] = dt.dt.strftime("%H:%M")
+
+    display_cols = [
+        c for c in ["id", "item_type", "title", "description", "contact", "status", "date", "time"]
+        if c in df.columns
+    ]
+    st.dataframe(df[display_cols] if display_cols else df, use_container_width=True)

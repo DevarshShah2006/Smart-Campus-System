@@ -33,8 +33,18 @@ def render_issues(conn, user):
         st.info("No issues reported.")
         return
 
-    df = pd.DataFrame(issues)
-    st.dataframe(df[["id", "title", "category", "status", "created_at"]], use_container_width=True)
+    if issues and hasattr(issues[0], "keys"):
+        df = pd.DataFrame(issues, columns=issues[0].keys())
+    else:
+        df = pd.DataFrame(issues)
+
+    if "created_at" in df.columns:
+        dt = pd.to_datetime(df["created_at"], errors="coerce")
+        df["date"] = dt.dt.date
+        df["time"] = dt.dt.strftime("%H:%M")
+
+    display_cols = [c for c in ["id", "title", "category", "status", "date", "time"] if c in df.columns]
+    st.dataframe(df[display_cols] if display_cols else df, use_container_width=True)
 
     if user["role_id"] != 1:
         issue_id = st.number_input("Issue ID", min_value=1, step=1)
