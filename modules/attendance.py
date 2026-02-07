@@ -3,7 +3,6 @@
 from datetime import datetime
 from uuid import uuid4
 import sqlite3
-import socket
 
 import streamlit as st
 import pandas as pd
@@ -13,6 +12,8 @@ from streamlit_js_eval import streamlit_js_eval
 
 from core.utils import haversine_distance, now_iso, parse_iso, add_minutes
 from core.qr import generate_qr
+
+APP_BASE_URL = "https://smart-campus-system-4rvhza22xqtxanom66dczk.streamlit.app"
 
 
 # Initialize session state for GPS location
@@ -162,18 +163,6 @@ def _log_audit(conn, action: str, details: str, actor_id: int | None):
 def _get_setting(conn, key: str, default: float) -> float:
     row = conn.execute("SELECT value FROM system_settings WHERE key = ?", (key,)).fetchone()
     return float(row["value"]) if row else float(default)
-
-
-def get_local_ip():
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        # Check connection to external server (doesn't actually send data)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except Exception:
-        return "localhost"
 
 
 def render_teacher_attendance(conn, user):
@@ -327,12 +316,7 @@ def render_teacher_attendance(conn, user):
 
                 with col1:
                     st.markdown("### 📱 QR Code")
-                    # Auto-detect IP for mobile convenience
-                    default_ip = get_local_ip()
-                    default_url = f"http://{default_ip}:8502"
-
-                    base_url = st.text_input("📱 Attendance URL Base", value=default_url, help="Ensure this matches your PC's IP address")
-                    attendance_url = f"{base_url}/?session_id={session_id}"
+                    attendance_url = f"{APP_BASE_URL}/?session_id={session_id}"
 
                     st.markdown("#### Generating QR Code...")
                     try:
@@ -454,7 +438,7 @@ def render_student_attendance(conn, user):
     st.session_state.setdefault("attendance_lock", set())
 
     params = _get_query_params()
-    session_id = params.get("session_id", "")
+    session_id = (_qp_get(params, "session_id") or "").strip()
 
     lectures = conn.execute(
         "SELECT * FROM lectures ORDER BY start_time DESC LIMIT 20"
@@ -503,6 +487,11 @@ def render_student_attendance(conn, user):
             return
 
     lecture = lecture_map.get(session_id)
+    if session_id and not lecture:
+        lecture = conn.execute(
+            "SELECT * FROM lectures WHERE session_id = ?",
+            (session_id,),
+        ).fetchone()
     if not lecture:
         st.error("❌ Invalid or expired session.")
         return
@@ -625,7 +614,7 @@ def render_student_attendance(conn, user):
             st.markdown("---")
             st.markdown("#### 📋 Attendance Receipt QR")
             try:
-                receipt_url = f"http://localhost:8502/?session_id={session_id}&receipt=true&enrollment={user['enrollment']}"
+                receipt_url = f"{APP_BASE_URL}/?session_id={session_id}&receipt=true&enrollment={user['enrollment']}"
                 receipt_qr = generate_qr(receipt_url)
                 if receipt_qr and receipt_qr.exists():
                     file_size = receipt_qr.stat().st_size

@@ -1,8 +1,11 @@
+from pathlib import Path
+
 import streamlit as st
 
 from core.db import init_db, seed_defaults, get_db
 from core.security import hash_password
 from core.utils import ensure_dirs
+from core.qr import generate_qr
 
 from modules.auth import render_auth
 from modules.admin import render_admin_dashboard, render_user_management
@@ -31,6 +34,23 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+PUBLIC_APP_URL = "https://smart-campus-system-4rvhza22xqtxanom66dczk.streamlit.app/"
+
+
+def _get_public_app_qr_path() -> Path:
+    cached = st.session_state.get("public_app_qr_path")
+    if cached:
+        try:
+            cached_path = Path(cached)
+            if cached_path.exists():
+                return cached_path
+        except Exception:
+            pass
+
+    qr_path = generate_qr(PUBLIC_APP_URL)
+    st.session_state.public_app_qr_path = str(qr_path)
+    return qr_path
 
 ensure_dirs()
 conn = init_db()
@@ -93,6 +113,18 @@ if not st.session_state.user:
         )
         st.markdown("---")
         render_auth(conn)
+
+        st.markdown("---")
+        st.subheader("📱 Scan to open the live app")
+        st.caption("Share the HTTPS link easily by scanning this QR code.")
+        try:
+            public_qr = _get_public_app_qr_path()
+            if public_qr.exists():
+                st.image(str(public_qr), caption=PUBLIC_APP_URL, width=220)
+            else:
+                st.warning("QR code file not found. Please refresh the page.")
+        except Exception as exc:
+            st.warning(f"Could not generate QR code: {exc}")
 else:
     user = st.session_state.user
     role_name = roles.get(user["role_id"], "student")
