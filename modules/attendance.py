@@ -445,15 +445,14 @@ def render_student_attendance(conn, user):
     ).fetchall()
     lecture_map = {row["session_id"]: row for row in lectures}
 
-    if not session_id:
+    def _select_session() -> str | None:
         st.info("📱 Scan the QR code from your teacher to mark attendance, or select a session below.")
-        session_id = st.selectbox(
+        selected = st.selectbox(
             "📚 Select Lecture Session",
             ["-- Select --"] + list(lecture_map.keys()),
             format_func=lambda x: f"{lecture_map[x]['subject']} - {lecture_map[x]['room']} ({lecture_map[x]['start_time'][:16]})" if x != "-- Select --" else "-- Select --"
         )
-        if session_id == "-- Select --":
-            
+        if selected == "-- Select --":
             # Show attendance history
             st.markdown("---")
             st.subheader("📊 Your Attendance History")
@@ -468,7 +467,7 @@ def render_student_attendance(conn, user):
                 """,
                 (user["enrollment"],)
             ).fetchall()
-            
+
             if history:
                 for record in history:
                     status_color = "green" if record[3] == "Present" else ("orange" if record[3] == "Late" else "red")
@@ -484,6 +483,13 @@ def render_student_attendance(conn, user):
                     """, unsafe_allow_html=True)
             else:
                 st.info("No attendance history yet")
+            return None
+
+        return selected
+
+    if not session_id:
+        session_id = _select_session()
+        if not session_id:
             return
 
     lecture = lecture_map.get(session_id)
@@ -493,8 +499,19 @@ def render_student_attendance(conn, user):
             (session_id,),
         ).fetchone()
     if not lecture:
-        st.error("❌ Invalid or expired session.")
-        return
+        st.warning("⚠️ Invalid or expired session. Please select a valid lecture below.")
+        session_id = _select_session()
+        if not session_id:
+            return
+        lecture = lecture_map.get(session_id)
+        if not lecture:
+            lecture = conn.execute(
+                "SELECT * FROM lectures WHERE session_id = ?",
+                (session_id,),
+            ).fetchone()
+        if not lecture:
+            st.error("❌ Invalid or expired session.")
+            return
 
     st.markdown(f"""
     ### 📚 {lecture['subject']}
