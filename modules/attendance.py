@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 
 from streamlit_js_eval import streamlit_js_eval
 
+from core.db import get_db
 from core.utils import haversine_distance, now_iso, parse_iso, add_minutes
 from core.qr import generate_qr
 
@@ -440,10 +441,20 @@ def render_student_attendance(conn, user):
     params = _get_query_params()
     session_id = (_qp_get(params, "session_id") or "").strip()
 
-    lectures = conn.execute(
-        "SELECT * FROM lectures ORDER BY start_time DESC LIMIT 20"
-    ).fetchall()
+    if st.button("🔄 Refresh sessions", help="Reload the latest lecture list"):
+        st.rerun()
+
+    fresh_conn = get_db()
+    try:
+        lectures = fresh_conn.execute(
+            "SELECT * FROM lectures ORDER BY start_time DESC LIMIT 20"
+        ).fetchall()
+    finally:
+        fresh_conn.close()
     lecture_map = {row["session_id"]: row for row in lectures}
+
+    if not lectures:
+        st.info("No lecture sessions found yet. Ask your teacher to create one, then refresh.")
 
     def _select_session() -> str | None:
         st.info("📱 Scan the QR code from your teacher to mark attendance, or select a session below.")
