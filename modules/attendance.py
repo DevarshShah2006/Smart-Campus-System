@@ -588,16 +588,39 @@ def render_student_attendance(conn, user):
 
     geo = _get_geo_from_query()
 
+    default_lat = float(geo[0]) if geo else 0.0
+    default_lon = float(geo[1]) if geo else 0.0
+    default_acc = float(geo[2]) if geo else 10.0
+
     with st.form("attendance_confirm"):
         st.markdown("#### 🌐 GPS Coordinates (Auto or Manual)")
         st.caption("If 'Get GPS Location' failed, enter coordinates manually below (ask Teacher for Lat/Lon if needed).")
         col1, col2, col3 = st.columns(3)
         with col1:
-            manual_lat = st.number_input("Latitude", format="%.6f", value=geo[0] if geo else 0.0)
+            manual_lat = st.number_input(
+                "Latitude",
+                min_value=-90.0,
+                max_value=90.0,
+                value=default_lat,
+                step=0.000001,
+                format="%.6f",
+            )
         with col2:
-            manual_lon = st.number_input("Longitude", format="%.6f", value=geo[1] if geo else 0.0)
+            manual_lon = st.number_input(
+                "Longitude",
+                min_value=-180.0,
+                max_value=180.0,
+                value=default_lon,
+                step=0.000001,
+                format="%.6f",
+            )
         with col3:
-            manual_acc = st.number_input("Accuracy (m)", min_value=0.0, value=geo[2] if geo else 10.0)
+            manual_acc = st.number_input(
+                "Accuracy (m)",
+                min_value=0.0,
+                value=default_acc,
+                step=0.1,
+            )
         
         submitted = st.form_submit_button("✅ Confirm My Presence", use_container_width=True, type="primary")
 
