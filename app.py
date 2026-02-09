@@ -99,6 +99,22 @@ else:
     user = st.session_state.user
     role_name = roles.get(user["role_id"], "student")
 
+    if st.session_state.get("active_user_id") != user.get("id"):
+        keys_to_clear = [
+            "attendance_lock",
+            "geo_location",
+            "gps_request",
+            "gps_message",
+            "show_full_qr",
+            "full_qr_path",
+            "full_qr_caption",
+            "teacher_view_session",
+        ]
+        for key in keys_to_clear:
+            st.session_state.pop(key, None)
+        st.session_state.active_user_id = user.get("id")
+        st.session_state.current_page = "Dashboard"
+
     with st.sidebar:
         st.markdown(f"""
         <div style='text-align: center; padding: 1rem 0; border-bottom: 2px solid #333; margin-bottom: 1rem;'>
@@ -150,11 +166,9 @@ else:
             ]
         else:  # admin
             menu_items = [
-                ("🎯", "Admin Panel"),
+            ("🎯", "Dashboard"),
                 ("👥", "User Management"),
-                ("✅", "Attendance"),
                 ("📢", "Notices"),
-                ("📚", "Resources"),
                 ("📅", "Schedule"),
                 ("⭐", "Feedback"),
                 ("🔧", "Issues"),
@@ -182,18 +196,12 @@ else:
     
     # Route to appropriate page
     if role_name == "admin":
-        if page == "Admin Panel":
+        if page == "Dashboard":
             render_admin_dashboard(conn, user)
         elif page == "User Management":
             render_user_management(conn, user)
-        elif page == "Attendance":
-            render_teacher_attendance(conn, user)
-            st.markdown("---")
-            render_attendance_analytics(conn)
         elif page == "Notices":
             render_notice_board(conn, user)
-        elif page == "Resources":
-            render_resources(conn, user)
         elif page == "Schedule":
             render_schedule(conn, user)
         elif page == "Feedback":

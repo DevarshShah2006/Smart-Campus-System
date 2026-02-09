@@ -1,6 +1,8 @@
 import sqlite3
 
-conn = sqlite3.connect('data/smart_campus.db')
+from core.db import DB_PATH
+
+conn = sqlite3.connect(str(DB_PATH))
 cursor = conn.cursor()
 
 print('\n' + '='*60)

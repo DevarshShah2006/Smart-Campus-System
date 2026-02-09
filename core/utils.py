@@ -34,7 +34,10 @@ def now_local() -> datetime:
 
 
 def parse_iso(value: str) -> datetime:
-    return datetime.fromisoformat(value)
+    dt = datetime.fromisoformat(value)
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(APP_TZ).replace(tzinfo=None)
+    return dt
 
 
 def add_minutes(value: datetime, minutes: int) -> datetime:

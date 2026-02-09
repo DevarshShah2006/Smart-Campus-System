@@ -117,6 +117,8 @@ def _render_geolocation_block(use_mock: bool = True):
             st.warning(f"Could not read GPS: {loc['error']}")
         else:
             st.warning("Could not read GPS. Check browser permissions or use Mock/Manual GPS.")
+    elif st.session_state.gps_request and loc is None:
+        st.warning("Could not read GPS. No location data returned.")
 
 
 def _get_geo_from_query():
@@ -186,7 +188,7 @@ def render_teacher_attendance(conn, user):
         _sync_geo_from_url()
 
         # Render GPS capture component
-        _render_geolocation_block(use_mock=False)
+        _render_geolocation_block(use_mock=True)
 
         # Sync again after component updates URL (ensures values get picked up)
         if not st.session_state.geo_location:
@@ -522,7 +524,6 @@ def render_student_attendance(conn, user):
         st.info("No lecture sessions found yet. Ask your teacher to create one, then refresh.")
 
     def _select_session() -> str | None:
-        st.info("📱 Scan the QR code from your teacher to mark attendance, or select a session below.")
         selected = st.selectbox(
             "📚 Select Lecture Session",
             ["-- Select --"] + list(lecture_map.keys()),
