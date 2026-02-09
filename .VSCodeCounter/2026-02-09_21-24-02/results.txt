@@ -1,0 +1,55 @@
+Date : 2026-02-09 21:24:02
+Directory : c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System
+Total : 23 files,  1474 codes, 782 comments, 357 blanks, all 2613 lines
+
+Languages
++------------------+------------+------------+------------+------------+------------+
+| language         | files      | code       | comment    | blank      | total      |
++------------------+------------+------------+------------+------------+------------+
+| Python           |         20 |      1,305 |        782 |        333 |      2,420 |
+| HTML             |          1 |        111 |          0 |         11 |        122 |
+| Markdown         |          1 |         51 |          0 |         12 |         63 |
+| pip requirements |          1 |          7 |          0 |          1 |          8 |
++------------------+------------+------------+------------+------------+------------+
+
+Directories
++-----------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                                                      | files      | code       | comment    | blank      | total      |
++-----------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                                         |         23 |      1,474 |        782 |        357 |      2,613 |
+| . (Files)                                                                                                 |          4 |        184 |        182 |         37 |        403 |
+| components                                                                                                |          1 |        111 |          0 |         11 |        122 |
+| components\gps_capture                                                                                    |          1 |        111 |          0 |         11 |        122 |
+| core                                                                                                      |          4 |        126 |        159 |         67 |        352 |
+| modules                                                                                                   |         14 |      1,053 |        441 |        242 |      1,736 |
++-----------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++-----------------------------------------------------------------------------------------------------------+------------------+------------+------------+------------+------------+
+| filename                                                                                                  | language         | code       | comment    | blank      | total      |
++-----------------------------------------------------------------------------------------------------------+------------------+------------+------------+------------+------------+
+| c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\README.md                         | Markdown         |         51 |          0 |         12 |         63 |
+| c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\app.py                            | Python           |         87 |        174 |         12 |        273 |
+| c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\components\gps_capture\index.html | HTML             |        111 |          0 |         11 |        122 |
+| c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\core\db.py                        | Python           |         60 |        159 |         29 |        248 |
+| c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\core\qr.py                        | Python           |         11 |          0 |          5 |         16 |
+| c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\core\security.py                  | Python           |          5 |          0 |          5 |         10 |
+| c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\core\utils.py                     | Python           |         50 |          0 |         28 |         78 |
+| c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\modules\admin.py                  | Python           |        171 |         20 |         45 |        236 |
+| c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\modules\analytics.py              | Python           |         69 |          0 |         10 |         79 |
+| c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\modules\attendance.py             | Python           |        321 |        374 |         66 |        761 |
+| c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\modules\auth.py                   | Python           |         67 |          3 |         18 |         88 |
+| c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\modules\dashboard.py              | Python           |         29 |          0 |          8 |         37 |
+| c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\modules\events.py                 | Python           |         48 |          4 |         11 |         63 |
+| c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\modules\feedback.py               | Python           |         64 |         13 |         14 |         91 |
+| c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\modules\issues.py                 | Python           |         45 |          7 |         11 |         63 |
+| c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\modules\lost_found.py             | Python           |         39 |          5 |         10 |         54 |
+| c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\modules\notices.py                | Python           |         52 |          5 |         13 |         70 |
+| c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\modules\resources.py              | Python           |         60 |          6 |         13 |         79 |
+| c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\modules\schedule.py               | Python           |         31 |          0 |          8 |         39 |
+| c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\modules\search.py                 | Python           |         33 |          0 |          5 |         38 |
+| c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\modules\settings.py               | Python           |         24 |          4 |         10 |         38 |
+| c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\requirements.txt                  | pip requirements |          7 |          0 |          1 |          8 |
+| c:\Users\Devarsh\Desktop\Coding\Smart Campus System\Smart-Campus-System\view_database.py                  | Python           |         39 |          8 |         12 |         59 |
+| Total                                                                                                     |                  |      1,474 |        782 |        357 |      2,613 |
++-----------------------------------------------------------------------------------------------------------+------------------+------------+------------+------------+------------+

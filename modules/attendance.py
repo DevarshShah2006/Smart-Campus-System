@@ -57,13 +57,11 @@ def _get_query_params():
         return {}
 
 
-def _render_geolocation_block(use_mock=False):
+def _render_geolocation_block(use_mock: bool = True):
     """Render GPS capture UI (streamlit-js-eval)"""
 
-    col1, col2, col3 = st.columns([2, 1, 1])
-    with col1:
-        st.markdown("### Capture Your Location")
-    with col2:
+    st.markdown("### Capture Your Location")
+    if use_mock:
         if st.button("Use Mock GPS", key="mock_gps", help="For testing without real GPS"):
             # Mock GPS coordinates (somewhere reasonable)
             st.session_state.geo_location = {
@@ -74,14 +72,14 @@ def _render_geolocation_block(use_mock=False):
             }
             st.success("Mock GPS enabled for demo!")
             st.rerun()
-    with col3:
-        if st.button("Clear", key="clear_geo"):
-            st.session_state.geo_location = None
-            try:
-                st.query_params.clear()
-            except Exception:
-                pass
-            st.rerun()
+
+    if st.button("Clear", key="clear_geo"):
+        st.session_state.geo_location = None
+        try:
+            st.query_params.clear()
+        except Exception:
+            pass
+        st.rerun()
 
     st.session_state.setdefault("gps_request", False)
     if st.button("Get Real GPS Location", key="real_gps"):
@@ -113,7 +111,7 @@ def _render_geolocation_block(use_mock=False):
     if loc and isinstance(loc, dict) and "lat" in loc and "lon" in loc:
         st.session_state.geo_location = loc
         st.session_state.gps_request = False
-        st.success("GPS captured and synced to Python.")
+        st.success("GPS captured")
     elif st.session_state.gps_request and loc is not None:
         if isinstance(loc, dict) and loc.get("error"):
             st.warning(f"Could not read GPS: {loc['error']}")
@@ -138,6 +136,7 @@ def _attendance_status(lecture, distance_m: float) -> str:
     start = parse_iso(lecture["start_time"])
     end = parse_iso(lecture["end_time"])
     late_after = add_minutes(start, int(lecture["late_after_min"]))
+    radius_m = float(lecture["radius_m"])
 
     # Add a small buffer (2 minutes) to start time to account for clock drift
     start_buffer = start - pd.Timedelta(minutes=2)
@@ -147,10 +146,10 @@ def _attendance_status(lecture, distance_m: float) -> str:
     if now > end:
         return f"Rejected (Closed - Ended {end.strftime('%H:%M')})"
 
-    if distance_m <= lecture["radius_m"]:
+    if distance_m <= radius_m:
         return "Present" if now <= late_after else "Late"
 
-    return f"Rejected (Out of Radius: {distance_m:.1f}m > {lecture['radius_m']}m)"
+    return f"Rejected (Out of Radius: {distance_m:.1f}m > {radius_m}m)"
 
 
 def _log_audit(conn, action: str, details: str, actor_id: int | None):
@@ -187,7 +186,7 @@ def render_teacher_attendance(conn, user):
         _sync_geo_from_url()
 
         # Render GPS capture component
-        _render_geolocation_block()
+        _render_geolocation_block(use_mock=False)
 
         # Sync again after component updates URL (ensures values get picked up)
         if not st.session_state.geo_location:
@@ -233,21 +232,12 @@ def render_teacher_attendance(conn, user):
                 f"✅ Location Captured! {source_emoji} {source_text}\n📍 Lat: {geo['lat']:.6f} | Lon: {geo['lon']:.6f} | Accuracy: {geo['acc']:.1f}m"
             )
 
-            # Debug panel (can be collapsed)
-            with st.expander("🔎 Debug: GPS + Params", expanded=False):
-                st.caption("Query params:")
-                try:
-                    st.code(str(dict(st.query_params)))
-                except Exception:
-                    st.code("<unavailable>")
-                st.caption("Session geo:")
-                st.code(str(st.session_state.geo_location))
 
         # STEP 2: Lecture form (always visible)
         st.markdown("---")
         st.markdown("### Step 2: Enter Lecture Details")
 
-        default_radius = _get_setting(conn, "radius_m", 40)
+        default_radius = _get_setting(conn, "radius_m", 100)
         default_late = int(_get_setting(conn, "late_after_min", 10))
         default_duration = int(_get_setting(conn, "time_window_min", 60))
 
@@ -311,7 +301,6 @@ def render_teacher_attendance(conn, user):
                 conn.commit()
 
                 st.success(f"✅ Lecture session created: **{session_id}**")
-                st.balloons()
 
                 # Display QR Code and details
                 col1, col2 = st.columns(2)
@@ -328,6 +317,11 @@ def render_teacher_attendance(conn, user):
                             file_size = qr_path.stat().st_size
                             st.image(str(qr_path), caption=f"Scan to mark attendance for {subject}", width=300)
                             st.success(f"✅ QR Code generated successfully!")
+
+                            if st.button("🔍 View Fullscreen QR", key=f"full_qr_{session_id}"):
+                                st.session_state.full_qr_path = str(qr_path)
+                                st.session_state.full_qr_caption = f"Scan to mark attendance for {subject}"
+                                st.session_state.show_full_qr = True
 
                             # Show verification details
                             with st.expander("🔍 QR Code Details", expanded=False):
@@ -368,6 +362,16 @@ def render_teacher_attendance(conn, user):
                     - ⏳ Late after: {late_after_min} min
                     - 🌍 Location: ({lat:.6f}, {lon:.6f})
                     """)
+
+                if st.session_state.get("show_full_qr") and st.session_state.get("full_qr_path"):
+                    with st.modal("📱 QR Code (Fullscreen)"):
+                        st.image(
+                            st.session_state.full_qr_path,
+                            caption=st.session_state.get("full_qr_caption", "QR Code"),
+                            use_container_width=True,
+                        )
+                        if st.button("Close", key=f"close_full_qr_{session_id}"):
+                            st.session_state.show_full_qr = False
 
                 # Reset helpers
                 st.session_state["force_show_form"] = False
@@ -563,7 +567,7 @@ def render_student_attendance(conn, user):
     st.info("📍 **Step 1:** Click 'Get Real GPS Location' below (or use 'Mock GPS' for testing)")
     st.info("📍 **Step 2:** If GPS fails, scroll down and enter coordinates manually")
     
-    _render_geolocation_block()
+    _render_geolocation_block(use_mock=True)
     
     # Sync GPS from URL if present
     _sync_geo_from_url()
@@ -635,10 +639,15 @@ def render_student_attendance(conn, user):
             st.error("❌ Please enable GPS or enter coordinates manually.")
             return
 
-        distance_m = haversine_distance(lat, lon, lecture["latitude"], lecture["longitude"])
+        lat = float(lat)
+        lon = float(lon)
+        acc = float(acc)
+        lecture_lat = float(lecture["latitude"])
+        lecture_lon = float(lecture["longitude"])
+        distance_m = haversine_distance(lat, lon, lecture_lat, lecture_lon)
         status = _attendance_status(lecture, distance_m)
 
-        if acc > 100 or distance_m > lecture["radius_m"] * 1.5:
+        if acc > 100 or distance_m > float(lecture["radius_m"]) * 1.5:
             _log_audit(conn, "ATTENDANCE_ANOMALY", f"{user['enrollment']} accuracy={acc} distance={distance_m:.1f}", user["id"])
 
         try:
