@@ -257,8 +257,9 @@ def render_teacher_attendance(conn, user):
             with col1:
                 subject = st.text_input("📚 Subject *", placeholder="e.g., Data Structures")
                 room = st.text_input("🏫 Room / Classroom *", placeholder="e.g., Lab 301")
-                date = st.date_input("📅 Lecture Date")
-                start_time = st.time_input("⏰ Start Time")
+                now_local_dt = now_local()
+                date = st.date_input("📅 Lecture Date", value=now_local_dt.date())
+                start_time = st.time_input("⏰ Start Time", value=now_local_dt.time().replace(second=0, microsecond=0))
 
             with col2:
                 duration_min = st.number_input("⏱️ Duration (minutes)", min_value=30, max_value=240, value=default_duration)
