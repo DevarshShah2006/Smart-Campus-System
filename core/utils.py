@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from math import radians, sin, cos, sqrt, atan2
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -11,6 +12,8 @@ import numpy as np
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 UPLOADS_DIR = DATA_DIR / "uploads"
 QR_DIR = DATA_DIR / "qr"
+
+APP_TZ = ZoneInfo("Asia/Kolkata")
 
 
 def ensure_dirs():
@@ -23,7 +26,11 @@ def ensure_dirs():
 
 
 def now_iso() -> str:
-    return datetime.utcnow().isoformat()
+    return now_local().isoformat()
+
+
+def now_local() -> datetime:
+    return datetime.now(APP_TZ).replace(tzinfo=None)
 
 
 def parse_iso(value: str) -> datetime:

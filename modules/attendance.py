@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from streamlit_js_eval import streamlit_js_eval
 
 from core.db import get_db
-from core.utils import haversine_distance, now_iso, parse_iso, add_minutes
+from core.utils import haversine_distance, now_iso, parse_iso, add_minutes, now_local
 from core.qr import generate_qr
 
 APP_BASE_URL = "https://smart-campus-system-4rvhza22xqtxanom66dczk.streamlit.app"
@@ -134,7 +134,7 @@ def _get_geo_from_query():
 
 def _attendance_status(lecture, distance_m: float) -> str:
     # Use local time because lecture times are stored as naive local times
-    now = datetime.now()
+    now = now_local()
     start = parse_iso(lecture["start_time"])
     end = parse_iso(lecture["end_time"])
     late_after = add_minutes(start, int(lecture["late_after_min"]))
@@ -683,7 +683,7 @@ def render_student_attendance(conn, user):
                         - Enrollment: {user['enrollment']}
                         - Session: {session_id}
                         - Status: **{status}**
-                        - Time: {datetime.now().strftime('%H:%M:%S')}
+                        - Time: {now_local().strftime('%H:%M:%S')}
                         - Distance: {distance_m:.1f}m
                         """)
                 else:

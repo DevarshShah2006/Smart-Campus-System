@@ -1,6 +1,7 @@
 import sqlite3
 from pathlib import Path
-from datetime import datetime
+
+from core.utils import now_iso
 
 DB_PATH = Path(__file__).resolve().parent.parent / "data" / "smart_campus.db"
 
@@ -229,7 +230,7 @@ def seed_defaults(conn, password_hash):
         INSERT OR IGNORE INTO users (role_id, name, username, password_hash, created_at)
         VALUES (?, ?, ?, ?, ?)
         """,
-        (admin_role_id, "System Admin", "admin", password_hash, datetime.utcnow().isoformat()),
+        (admin_role_id, "System Admin", "admin", password_hash, now_iso()),
     )
 
     cursor.execute("SELECT id FROM roles WHERE name = ?", ("teacher",))
@@ -240,7 +241,7 @@ def seed_defaults(conn, password_hash):
         INSERT OR IGNORE INTO users (role_id, name, username, password_hash, created_at)
         VALUES (?, ?, ?, ?, ?)
         """,
-        (teacher_role_id, "Default Teacher", "teacher", password_hash, datetime.utcnow().isoformat()),
+        (teacher_role_id, "Default Teacher", "teacher", password_hash, now_iso()),
     )
 
     conn.commit()

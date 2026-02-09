@@ -1,8 +1,7 @@
-from datetime import datetime
-
 import streamlit as st
 
 from core.security import hash_password, verify_password
+from core.utils import now_iso
 
 
 def get_role_id(conn, role_name: str) -> int:
@@ -46,7 +45,7 @@ def register_student(conn):
             INSERT INTO users (role_id, name, enrollment, department, year, password_hash, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (role_id, name, enrollment, department, year, hash_password(password), datetime.utcnow().isoformat()),
+            (role_id, name, enrollment, department, year, hash_password(password), now_iso()),
         )
         conn.commit()
         st.success("Student profile created. Please log in.")
