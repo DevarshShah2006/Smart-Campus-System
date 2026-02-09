@@ -111,7 +111,8 @@ def render_user_management(conn, user):
                 enrollment = st.text_input("Enrollment Number *")
                 department = st.text_input("Department *")
             with col2:
-                year = st.selectbox("Year *", [1, 2, 3, 4])
+                year = st.selectbox("Year *", [1, 2, 3, 4, 5])
+                batch = st.selectbox("Batch *", [1, 2, 3, 4])
                 email = st.text_input("Email (Optional)")
                 password = st.text_input("Set Password *", type="password")
             
@@ -130,10 +131,10 @@ def render_user_management(conn, user):
             role_id = conn.execute("SELECT id FROM roles WHERE name = ?", ("student",)).fetchone()[0]
             conn.execute(
                 """
-                INSERT INTO users (role_id, name, enrollment, department, year, password_hash, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO users (role_id, name, enrollment, department, year, batch, password_hash, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (role_id, name, enrollment, department, year, hash_password(password), now_iso()),
+                (role_id, name, enrollment, department, year, batch, hash_password(password), now_iso()),
             )
             conn.commit()
             st.success(f"✅ Student {name} registered successfully!")
@@ -178,7 +179,7 @@ def render_user_management(conn, user):
         filter_role = st.selectbox("Filter by Role", ["All", "Students", "Teachers", "Admins"])
         
         query = """
-            SELECT u.id, u.name, u.enrollment, u.username, u.department, r.name as role, u.created_at
+            SELECT u.id, u.name, u.enrollment, u.username, u.department, u.year, u.batch, r.name as role, u.created_at
             FROM users u
             LEFT JOIN roles r ON u.role_id = r.id
         """
@@ -199,12 +200,13 @@ def render_user_management(conn, user):
             for u in users:
                 col1, col2, col3 = st.columns([3, 2, 1])
                 with col1:
-                    st.write(f"**{u[1]}** ({u[5].title()})")
+                    st.write(f"**{u[1]}** ({u[7].title()})")
                 with col2:
-                    st.write(f"{u[2] or u[3] or 'N/A'} - {u[4] or 'N/A'}")
+                    year_batch = f"Y{u[5]} B{u[6]}" if u[5] and u[6] else "Y/B N/A"
+                    st.write(f"{u[2] or u[3] or 'N/A'} - {u[4] or 'N/A'} - {year_batch}")
                 with col3:
                     if st.button("🗑️", key=f"del_{u[0]}"):
-                        if u[5] != "admin":  # Don't allow deleting admin
+                        if u[7] != "admin":  # Don't allow deleting admin
                             conn.execute("DELETE FROM users WHERE id = ?", (u[0],))
                             conn.commit()
                             st.success("Deleted")
@@ -212,6 +214,30 @@ def render_user_management(conn, user):
                 st.divider()
         else:
             st.info("No users found")
+
+        st.markdown("---")
+        st.subheader("✏️ Update Student Year/Batch")
+        students = conn.execute(
+            "SELECT enrollment, name, year, batch FROM users WHERE role_id = 1 ORDER BY name"
+        ).fetchall()
+        if students:
+            student_options = {
+                f"{s[1]} ({s[0]})": s for s in students if s[0]
+            }
+            selected_label = st.selectbox("Select Student", ["-- Select --"] + list(student_options.keys()))
+            if selected_label != "-- Select --":
+                selected = student_options[selected_label]
+                new_year = st.selectbox("Year", [1, 2, 3, 4, 5], index=max((selected[2] or 1) - 1, 0))
+                new_batch = st.selectbox("Batch", [1, 2, 3, 4], index=max((selected[3] or 1) - 1, 0))
+                if st.button("Update Student"):
+                    conn.execute(
+                        "UPDATE users SET year = ?, batch = ? WHERE enrollment = ?",
+                        (new_year, new_batch, selected[0]),
+                    )
+                    conn.commit()
+                    st.success("Student updated.")
+        else:
+            st.info("No students found")
     
     with tab4:
         st.subheader("📦 Bulk Actions")
@@ -221,11 +247,11 @@ def render_user_management(conn, user):
             import pandas as pd
             students = conn.execute(
                 """
-                SELECT name, enrollment, department, year, created_at
+                SELECT name, enrollment, department, year, batch, created_at
                 FROM users WHERE role_id = 1
                 """
             ).fetchall()
-            df = pd.DataFrame(students, columns=["Name", "Enrollment", "Department", "Year", "Created"])
+            df = pd.DataFrame(students, columns=["Name", "Enrollment", "Department", "Year", "Batch", "Created"])
             csv = df.to_csv(index=False)
             st.download_button(
                 "💾 Download CSV",

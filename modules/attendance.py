@@ -237,6 +237,20 @@ def render_teacher_attendance(conn, user):
         st.markdown("---")
         st.markdown("### Step 2: Enter Lecture Details")
 
+        student_rows = conn.execute(
+            """
+            SELECT u.year, u.batch
+            FROM users u
+            LEFT JOIN roles r ON u.role_id = r.id
+            WHERE r.name = 'student'
+            """
+        ).fetchall()
+        available_years = sorted({row["year"] for row in student_rows if row["year"] is not None})
+        for y in [1, 2, 3, 4, 5]:
+            if y not in available_years:
+                available_years.append(y)
+        available_years = sorted(available_years)
+
         default_radius = _get_setting(conn, "radius_m", 100)
         default_late = int(_get_setting(conn, "late_after_min", 10))
         default_duration = int(_get_setting(conn, "time_window_min", 60))
@@ -250,11 +264,18 @@ def render_teacher_attendance(conn, user):
                 now_local_dt = now_local()
                 date = st.date_input("📅 Lecture Date", value=now_local_dt.date())
                 start_time = st.time_input("⏰ Start Time", value=now_local_dt.time().replace(second=0, microsecond=0))
+                year = st.selectbox("🎓 Year *", available_years, key="lecture_year")
 
             with col2:
                 duration_min = st.number_input("⏱️ Duration (minutes)", min_value=30, max_value=240, value=default_duration)
                 late_after_min = st.number_input("⏳ Late After (minutes)", min_value=0, max_value=30, value=default_late)
                 radius_m = st.slider("📍 Allowed Radius (meters)", min_value=10, max_value=100, value=int(default_radius))
+                available_batches = sorted(
+                    {row["batch"] for row in student_rows if row["year"] == year and row["batch"] is not None}
+                )
+                if not available_batches:
+                    available_batches = [1, 2, 3, 4]
+                batch = st.selectbox("👥 Batch *", available_batches, key="lecture_batch")
 
             st.info("💡 Session will be created at your current GPS location. Students must be within the radius to mark attendance.")
 
@@ -281,8 +302,8 @@ def render_teacher_attendance(conn, user):
                 # Insert into database
                 conn.execute(
                     """
-                    INSERT INTO lectures (session_id, teacher_id, subject, room, start_time, end_time, latitude, longitude, radius_m, late_after_min, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO lectures (session_id, teacher_id, subject, room, start_time, end_time, latitude, longitude, radius_m, late_after_min, year, batch, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         session_id,
@@ -295,6 +316,8 @@ def render_teacher_attendance(conn, user):
                         lon,
                         radius_m,
                         int(late_after_min),
+                        int(year),
+                        int(batch),
                         now_iso(),
                     ),
                 )
@@ -389,7 +412,7 @@ def render_teacher_attendance(conn, user):
         st.subheader("📋 Recent Lecture Sessions")
         sessions = conn.execute(
             """
-            SELECT session_id, subject, room, start_time, end_time,
+            SELECT session_id, subject, room, start_time, end_time, year, batch,
                    (SELECT COUNT(*) FROM attendance WHERE session_id = lectures.session_id) as attendance_count
             FROM lectures
             WHERE teacher_id = ?
@@ -403,23 +426,27 @@ def render_teacher_attendance(conn, user):
             st.info("📭 No sessions created yet. Create your first session above!")
             return
         
+        selected_session = st.session_state.get("teacher_view_session")
         for session in sessions:
-            with st.expander(f"📚 {session[1]} - {session[0]} ({session[5]} students)"):
+            with st.expander(f"📚 {session[1]} - {session[0]} ({session[7]} students)"):
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     st.write(f"**Room:** {session[2]}")
                     st.write(f"**Start:** {session[3][:16]}")
                 with col2:
                     st.write(f"**End:** {session[4][:16]}")
-                    st.write(f"**Attendance:** {session[5]} students")
+                    st.write(f"**Attendance:** {session[7]} students")
                 with col3:
+                    st.write(f"**Year/Batch:** Y{session[5] or '-'} B{session[6] or '-'}")
                     if st.button("📊 View Details", key=f"view_{session[0]}"):
-                        st.info("Detailed view coming soon!")
+                        st.session_state.teacher_view_session = session[0]
+                        selected_session = session[0]
                 
                 # Show attendance for this session
                 att_records = conn.execute(
                     """
-                    SELECT a.enrollment, u.name, a.status, a.timestamp, a.distance_m
+                    SELECT a.enrollment, u.name, a.status, a.timestamp, a.distance_m,
+                           a.latitude, a.longitude, a.accuracy
                     FROM attendance a
                     LEFT JOIN users u ON a.enrollment = u.enrollment
                     WHERE a.session_id = ?
@@ -434,6 +461,27 @@ def render_teacher_attendance(conn, user):
                         st.text(f"{status_emoji} {record[0]} - {record[1]} - {record[2]} ({record[4]:.1f}m away)")
                 else:
                     st.caption("No attendance marked yet")
+
+                if selected_session == session[0]:
+                    st.markdown("---")
+                    st.subheader("📋 Session Details")
+                    if not att_records:
+                        st.info("No attendance records for this session yet.")
+                    else:
+                        df = pd.DataFrame(
+                            att_records,
+                            columns=[
+                                "Enrollment",
+                                "Name",
+                                "Status",
+                                "Timestamp",
+                                "Distance (m)",
+                                "Latitude",
+                                "Longitude",
+                                "Accuracy (m)",
+                            ],
+                        )
+                        st.dataframe(df, use_container_width=True)
 
 
 def render_student_attendance(conn, user):
@@ -451,9 +499,21 @@ def render_student_attendance(conn, user):
 
     fresh_conn = get_db()
     try:
-        lectures = fresh_conn.execute(
-            "SELECT * FROM lectures ORDER BY start_time DESC LIMIT 20"
-        ).fetchall()
+            student_year = user.get("year")
+            student_batch = user.get("batch")
+            if student_year and student_batch:
+                lectures = fresh_conn.execute(
+                    """
+                    SELECT * FROM lectures
+                    WHERE (year IS NULL OR year = ?) AND (batch IS NULL OR batch = ?)
+                    ORDER BY start_time DESC LIMIT 20
+                    """,
+                    (student_year, student_batch),
+                ).fetchall()
+            else:
+                lectures = fresh_conn.execute(
+                    "SELECT * FROM lectures ORDER BY start_time DESC LIMIT 20"
+                ).fetchall()
     finally:
         fresh_conn.close()
     lecture_map = {row["session_id"]: row for row in lectures}
@@ -528,6 +588,15 @@ def render_student_attendance(conn, user):
         if not lecture:
             st.error("❌ Invalid or expired session.")
             return
+
+    student_year = user.get("year")
+    student_batch = user.get("batch")
+    if lecture.get("year") is not None and student_year is not None and int(lecture["year"]) != int(student_year):
+        st.error(f"❌ This session is for Year {lecture['year']}. Your year is {student_year}.")
+        return
+    if lecture.get("batch") is not None and student_batch is not None and int(lecture["batch"]) != int(student_batch):
+        st.error(f"❌ This session is for Batch {lecture['batch']}. Your batch is {student_batch}.")
+        return
 
     st.markdown(f"""
     ### 📚 {lecture['subject']}

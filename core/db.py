@@ -35,6 +35,7 @@ def init_db():
             enrollment TEXT UNIQUE,
             department TEXT,
             year INTEGER,
+            batch INTEGER,
             username TEXT UNIQUE,
             password_hash TEXT NOT NULL,
             created_at TEXT NOT NULL,
@@ -57,6 +58,8 @@ def init_db():
             longitude REAL NOT NULL,
             radius_m REAL NOT NULL,
             late_after_min INTEGER NOT NULL,
+            year INTEGER,
+            batch INTEGER,
             created_at TEXT NOT NULL,
             FOREIGN KEY (teacher_id) REFERENCES users(id)
         )
@@ -211,6 +214,15 @@ def init_db():
         )
         """
     )
+
+    def _ensure_column(table: str, column: str, col_type: str):
+        cols = [row["name"] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()]
+        if column not in cols:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
+
+    _ensure_column("users", "batch", "INTEGER")
+    _ensure_column("lectures", "year", "INTEGER")
+    _ensure_column("lectures", "batch", "INTEGER")
 
     conn.commit()
     return conn

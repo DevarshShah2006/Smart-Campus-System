@@ -26,7 +26,8 @@ def register_student(conn):
         name = st.text_input("Full Name")
         enrollment = st.text_input("Enrollment Number")
         department = st.text_input("Department")
-        year = st.selectbox("Year", [1, 2, 3, 4])
+        year = st.selectbox("Year", [1, 2, 3, 4, 5])
+        batch = st.selectbox("Batch", [1, 2, 3, 4])
         password = st.text_input("Set Password", type="password")
         submitted = st.form_submit_button("Create Student Profile")
 
@@ -42,10 +43,10 @@ def register_student(conn):
         role_id = get_role_id(conn, "student")
         conn.execute(
             """
-            INSERT INTO users (role_id, name, enrollment, department, year, password_hash, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO users (role_id, name, enrollment, department, year, batch, password_hash, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (role_id, name, enrollment, department, year, hash_password(password), now_iso()),
+            (role_id, name, enrollment, department, year, batch, hash_password(password), now_iso()),
         )
         conn.commit()
         st.success("Student profile created. Please log in.")
