@@ -226,7 +226,6 @@ else:
     elif role_name == "teacher":
         if page == "Dashboard":
             st.title("👨‍🏫 Teacher Dashboard")
-            st.info("Welcome! Use the sidebar to navigate.")
             render_attendance_analytics(conn)
         elif page == "Attendance":
             render_teacher_attendance(conn, user)

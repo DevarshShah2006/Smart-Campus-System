@@ -651,14 +651,14 @@ def render_student_attendance(conn, user):
                 st.success("✅ GPS synced!")
             st.rerun()
     with col2:
-        if st.button("🎭 Use Mock GPS", key="student_mock", help="For demo/testing"):
+        if st.button(" Use Mock GPS", key="student_mock", help="For demo/testing"):
             st.session_state.geo_location = {
                 "lat": 23.0225,
                 "lon": 72.5714,
                 "acc": 10.0,
                 "source": "mock"
             }
-            st.success("🎭 Mock GPS enabled!")
+            st.success(" Mock GPS enabled!")
             st.rerun()
 
     geo = _get_geo_from_query()
@@ -771,7 +771,6 @@ def render_student_attendance(conn, user):
             except Exception as e:
                 st.warning(f"Could not generate receipt QR: {e}")
             
-            st.balloons()
         except sqlite3.IntegrityError:
             st.error("❌ Attendance already submitted for this session.")
 
