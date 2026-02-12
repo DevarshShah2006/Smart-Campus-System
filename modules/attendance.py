@@ -592,10 +592,10 @@ def render_student_attendance(conn, user):
 
     student_year = user.get("year")
     student_batch = user.get("batch")
-    if lecture.get("year") is not None and student_year is not None and int(lecture["year"]) != int(student_year):
+    if lecture["year"] is not None and student_year is not None and int(lecture["year"]) != int(student_year):
         st.error(f"❌ This session is for Year {lecture['year']}. Your year is {student_year}.")
         return
-    if lecture.get("batch") is not None and student_batch is not None and int(lecture["batch"]) != int(student_batch):
+    if lecture["batch"] is not None and student_batch is not None and int(lecture["batch"]) != int(student_batch):
         st.error(f"❌ This session is for Batch {lecture['batch']}. Your batch is {student_batch}.")
         return
 
