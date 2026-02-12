@@ -501,33 +501,70 @@ def render_student_attendance(conn, user):
 
     fresh_conn = get_db()
     try:
-            student_year = user.get("year")
-            student_batch = user.get("batch")
-            if student_year and student_batch:
-                lectures = fresh_conn.execute(
+        student_year = user.get("year")
+        student_batch = user.get("batch")
+        
+        # Get lectures matching student's year/batch
+        if student_year and student_batch:
+            matching_lectures = fresh_conn.execute(
+                """
+                SELECT * FROM lectures
+                WHERE (year IS NULL OR year = ?) AND (batch IS NULL OR batch = ?)
+                ORDER BY start_time DESC LIMIT 20
+                """,
+                (student_year, student_batch),
+            ).fetchall()
+        else:
+            matching_lectures = fresh_conn.execute(
+                "SELECT * FROM lectures ORDER BY start_time DESC LIMIT 20"
+            ).fetchall()
+        
+        # Get all lectures for override search
+        all_lectures = fresh_conn.execute(
+            "SELECT * FROM lectures ORDER BY start_time DESC LIMIT 50"
+        ).fetchall()
+    finally:
+        fresh_conn.close()
+    
+    matching_lecture_map = {row["session_id"]: row for row in matching_lectures}
+    all_lecture_map = {row["session_id"]: row for row in all_lectures}
+
+    if not matching_lectures:
+        st.warning(f"⚠️ No lectures found for Year {student_year}, Batch {student_batch}.")
+        
+        # Show search option for other year/batch
+        with st.expander("🔍 Search lectures from other year/batch"):
+            search_year = st.number_input("Year", value=1, step=1)
+            search_batch = st.number_input("Batch", value=1, step=1)
+            
+            search_conn = get_db()
+            try:
+                search_results = search_conn.execute(
                     """
                     SELECT * FROM lectures
                     WHERE (year IS NULL OR year = ?) AND (batch IS NULL OR batch = ?)
                     ORDER BY start_time DESC LIMIT 20
                     """,
-                    (student_year, student_batch),
+                    (search_year, search_batch),
                 ).fetchall()
+            finally:
+                search_conn.close()
+            
+            if search_results:
+                st.info(f"Found {len(search_results)} lectures for Year {search_year}, Batch {search_batch}")
+                search_lecture_map = {row["session_id"]: row for row in search_results}
+                all_lecture_map.update(search_lecture_map)
             else:
-                lectures = fresh_conn.execute(
-                    "SELECT * FROM lectures ORDER BY start_time DESC LIMIT 20"
-                ).fetchall()
-    finally:
-        fresh_conn.close()
-    lecture_map = {row["session_id"]: row for row in lectures}
-
-    if not lectures:
-        st.info("No lecture sessions found yet. Ask your teacher to create one, then refresh.")
+                st.info(f"No lectures found for Year {search_year}, Batch {search_batch}")
+        
+        st.info("Ask your teacher to create a lecture for your year/batch, then refresh.")
+        return
 
     def _select_session() -> str | None:
         selected = st.selectbox(
             "📚 Select Lecture Session",
-            ["-- Select --"] + list(lecture_map.keys()),
-            format_func=lambda x: f"{lecture_map[x]['subject']} - {lecture_map[x]['room']} ({lecture_map[x]['start_time'][:16]})" if x != "-- Select --" else "-- Select --"
+            ["-- Select --"] + list(matching_lecture_map.keys()),
+            format_func=lambda x: f"{matching_lecture_map[x]['subject']} - {matching_lecture_map[x]['room']} ({matching_lecture_map[x]['start_time'][:16]})" if x != "-- Select --" else "-- Select --"
         )
         if selected == "-- Select --":
             # Show attendance history
@@ -569,18 +606,21 @@ def render_student_attendance(conn, user):
         if not session_id:
             return
 
-    lecture = lecture_map.get(session_id)
+    # Lookup lecture from matching_lecture_map first, then all_lecture_map
+    lecture = matching_lecture_map.get(session_id) or all_lecture_map.get(session_id)
+    
     if session_id and not lecture:
         lecture = conn.execute(
             "SELECT * FROM lectures WHERE session_id = ?",
             (session_id,),
         ).fetchone()
+    
     if not lecture:
         st.warning("⚠️ Invalid or expired session. Please select a valid lecture below.")
         session_id = _select_session()
         if not session_id:
             return
-        lecture = lecture_map.get(session_id)
+        lecture = matching_lecture_map.get(session_id) or all_lecture_map.get(session_id)
         if not lecture:
             lecture = conn.execute(
                 "SELECT * FROM lectures WHERE session_id = ?",
@@ -589,15 +629,6 @@ def render_student_attendance(conn, user):
         if not lecture:
             st.error("❌ Invalid or expired session.")
             return
-
-    student_year = user.get("year")
-    student_batch = user.get("batch")
-    if lecture["year"] is not None and student_year is not None and int(lecture["year"]) != int(student_year):
-        st.error(f"❌ This session is for Year {lecture['year']}. Your year is {student_year}.")
-        return
-    if lecture["batch"] is not None and student_batch is not None and int(lecture["batch"]) != int(student_batch):
-        st.error(f"❌ This session is for Batch {lecture['batch']}. Your batch is {student_batch}.")
-        return
 
     st.markdown(f"""
     ### 📚 {lecture['subject']}
