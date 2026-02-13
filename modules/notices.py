@@ -6,7 +6,7 @@ def render_notice_board(conn, user):
     st.title("📢 Digital Notice Board")
     st.markdown("---")
     
-    if user["role_id"] != 1:  # Teacher or Admin
+    if user.get("role_name") != "student":  # Teacher or Admin
         with st.expander("✏️ Post New Notice", expanded=False):
             with st.form("notice_form"):
                 title = st.text_input("📌 Notice Title *", placeholder="e.g., Holiday Announcement")

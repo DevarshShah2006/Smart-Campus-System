@@ -43,7 +43,7 @@ def render_feedback(conn, user):
         format_func=_lecture_label,
     )
 
-    if user["role_id"] == 1:
+    if user.get("role_name") == "student":
         with st.form("feedback_form"):
             rating = st.slider("Rating", min_value=1, max_value=5, value=4)
             comments = st.text_area("Comments (optional)")

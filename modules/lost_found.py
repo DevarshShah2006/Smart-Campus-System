@@ -8,7 +8,7 @@ def render_lost_found(conn, user):
     st.subheader("Lost & Found Portal")
 
     # Allow students to post Lost or Found
-    if user["role_id"] == 1:
+    if user.get("role_name") == "student":
         with st.form("lost_found_form"):
             item_type = st.selectbox("Type", ["Lost", "Found"])
             title = st.text_input("Item Title")

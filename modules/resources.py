@@ -10,7 +10,7 @@ def render_resources(conn, user):
     upload_dir = UPLOADS_DIR / "resources"
     upload_dir.mkdir(parents=True, exist_ok=True)
 
-    if user["role_id"] != 1:
+    if user.get("role_name") != "student":
         with st.form("resource_form"):
             title = st.text_input("Resource Title")
             subject = st.text_input("Subject")
@@ -55,7 +55,7 @@ def render_resources(conn, user):
         df["time"] = dt.dt.strftime("%H:%M")
 
     display_cols = [c for c in ["title", "subject", "date", "time"] if c in df.columns]
-    if user["role_id"] != 1 and "file_path" in df.columns:
+    if user.get("role_name") != "student" and "file_path" in df.columns:
         display_cols.append("file_path")
     st.dataframe(df[display_cols] if display_cols else df, use_container_width=True)
 

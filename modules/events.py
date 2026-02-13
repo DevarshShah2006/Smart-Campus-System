@@ -7,7 +7,7 @@ from core.utils import now_iso
 def render_events(conn, user):
     st.subheader("Campus Events & Workshops")
 
-    if user["role_id"] != 1:
+    if user.get("role_name") != "student":
         with st.form("event_form"):
             title = st.text_input("Event Title")
             description = st.text_area("Description")
@@ -42,7 +42,7 @@ def render_events(conn, user):
     display_cols = [c for c in ["id", "title", "event_date", "location"] if c in df.columns]
     st.dataframe(df[display_cols] if display_cols else df, use_container_width=True)
 
-    if user["role_id"] == 1:
+    if user.get("role_name") == "student":
         if events and hasattr(events[0], "keys"):
             event_ids = [row["id"] for row in events]
         else:

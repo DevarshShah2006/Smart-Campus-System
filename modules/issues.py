@@ -7,7 +7,7 @@ from core.utils import now_iso
 def render_issues(conn, user):
     st.subheader("Campus Issue Reporting")
 
-    if user["role_id"] == 1:
+    if user.get("role_name") == "student":
         with st.form("issue_form"):
             title = st.text_input("Issue Title")
             category = st.selectbox("Category", ["Wi-Fi", "Electricity", "Cleanliness", "Security", "Other"])
@@ -46,7 +46,7 @@ def render_issues(conn, user):
     display_cols = [c for c in ["id", "title", "category", "status", "date", "time"] if c in df.columns]
     st.dataframe(df[display_cols] if display_cols else df, use_container_width=True)
 
-    if user["role_id"] != 1:
+    if user.get("role_name") != "student":
         issue_id = st.number_input("Issue ID", min_value=1, step=1)
         status = st.selectbox("Update Status", ["Open", "In Progress", "Resolved"])
         if st.button("Update Issue Status"):

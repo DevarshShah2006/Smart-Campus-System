@@ -1,11 +1,20 @@
+import sqlite3
+
 import streamlit as st
 
-from core.db import init_db, seed_defaults, get_db
+from core.db import (
+    init_db,
+    seed_defaults,
+    get_db,
+)
 from core.security import hash_password
 from core.utils import ensure_dirs
 
 from modules.auth import render_auth
-from modules.admin import render_admin_dashboard, render_user_management
+from modules.admin import (
+    render_admin_dashboard,
+    render_user_management,
+)
 from modules.attendance import (
     render_teacher_attendance,
     render_student_attendance,
@@ -19,7 +28,10 @@ from modules.feedback import render_feedback
 from modules.issues import render_issues
 from modules.lost_found import render_lost_found
 from modules.events import render_events
-from modules.analytics import render_analytics, render_exports
+from modules.analytics import (
+    render_analytics,
+    render_exports,
+)
 from modules.search import render_search
 from modules.settings import render_settings
 from modules.dashboard import render_student_dashboard
@@ -33,9 +45,13 @@ st.set_page_config(
 )
 
 
-ensure_dirs()
-conn = init_db()
-seed_defaults(conn, hash_password("admin123"))
+try:
+    ensure_dirs()
+    conn = init_db()
+    seed_defaults(conn, hash_password("admin123"))
+except sqlite3.Error as e:
+    st.error(f"Database error: {e}")
+    st.stop()
 
 if "user" not in st.session_state:
     st.session_state.user = None
@@ -44,7 +60,11 @@ if "role" not in st.session_state:
 if "current_page" not in st.session_state:
     st.session_state.current_page = "Dashboard"
 
-roles = {row["id"]: row["name"] for row in conn.execute("SELECT * FROM roles")}
+try:
+    roles = {row["id"]: row["name"] for row in conn.execute("SELECT * FROM roles")}
+except sqlite3.Error as e:
+    st.error(f"Database error: {e}")
+    st.stop()
 
 # Custom CSS for better UI
 st.markdown("""
@@ -98,6 +118,9 @@ if not st.session_state.user:
 else:
     user = st.session_state.user
     role_name = roles.get(user["role_id"], "student")
+    if user.get("role_name") != role_name:
+        st.session_state.user = {**user, "role_name": role_name}
+        user = st.session_state.user
 
     if st.session_state.get("active_user_id") != user.get("id"):
         keys_to_clear = [

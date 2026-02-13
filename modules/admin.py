@@ -13,11 +13,25 @@ def render_admin_dashboard(conn, user):
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        total_students = conn.execute("SELECT COUNT(*) FROM users WHERE role_id = 1").fetchone()[0]
+        total_students = conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM users u
+            JOIN roles r ON u.role_id = r.id
+            WHERE r.name = 'student'
+            """
+        ).fetchone()[0]
         st.metric("👨‍🎓 Total Students", total_students)
     
     with col2:
-        total_teachers = conn.execute("SELECT COUNT(*) FROM users WHERE role_id = 2").fetchone()[0]
+        total_teachers = conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM users u
+            JOIN roles r ON u.role_id = r.id
+            WHERE r.name = 'teacher'
+            """
+        ).fetchone()[0]
         st.metric("👨‍🏫 Total Teachers", total_teachers)
     
     with col3:
@@ -218,7 +232,13 @@ def render_user_management(conn, user):
         st.markdown("---")
         st.subheader("✏️ Update Student Year/Batch")
         students = conn.execute(
-            "SELECT enrollment, name, year, batch FROM users WHERE role_id = 1 ORDER BY name"
+            """
+            SELECT u.enrollment, u.name, u.year, u.batch
+            FROM users u
+            JOIN roles r ON u.role_id = r.id
+            WHERE r.name = 'student'
+            ORDER BY u.name
+            """
         ).fetchall()
         if students:
             student_options = {
@@ -247,8 +267,10 @@ def render_user_management(conn, user):
             import pandas as pd
             students = conn.execute(
                 """
-                SELECT name, enrollment, department, year, batch, created_at
-                FROM users WHERE role_id = 1
+                SELECT u.name, u.enrollment, u.department, u.year, u.batch, u.created_at
+                FROM users u
+                JOIN roles r ON u.role_id = r.id
+                WHERE r.name = 'student'
                 """
             ).fetchall()
             df = pd.DataFrame(students, columns=["Name", "Enrollment", "Department", "Year", "Batch", "Created"])

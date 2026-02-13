@@ -35,7 +35,7 @@ def _sync_geo_from_url():
     lat = _qp_get(params, "geo_lat")
     lon = _qp_get(params, "geo_lon")
     acc = _qp_get(params, "geo_acc")
-    if lat and lon:
+    if lat is not None and lon is not None:
         try:
             st.session_state.geo_location = {
                 "lat": float(lat),
@@ -127,7 +127,7 @@ def _get_geo_from_query():
         lat = geo.get("lat")
         lon = geo.get("lon")
         acc = geo.get("acc")
-        if lat and lon and acc is not None:
+        if lat is not None and lon is not None and acc is not None:
             return lat, lon, acc
     return None
 

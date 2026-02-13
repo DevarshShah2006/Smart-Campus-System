@@ -5,7 +5,7 @@ import pandas as pd
 def render_schedule(conn, user):
     st.subheader("Lecture Schedule")
 
-    if user["role_id"] != 1:
+    if user.get("role_name") != "student":
         with st.form("schedule_form"):
             day = st.selectbox("Day", ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"])
             time = st.text_input("Time (e.g., 10:00-11:00)")
