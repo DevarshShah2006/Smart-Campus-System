@@ -259,7 +259,6 @@ def render_user_management(conn, user):
     
     with tab4:
         st.subheader("📦 Bulk Actions")
-        st.info("🚧 Bulk user import/export coming soon!")
         
         if st.button("📥 Export All Students as CSV"):
             import pandas as pd
