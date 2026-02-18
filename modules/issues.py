@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 
-from core.utils import now_iso
+from core.utils import now_iso, rows_to_dataframe, add_datetime_columns
 
 
 def render_issues(conn, user):
@@ -33,15 +33,8 @@ def render_issues(conn, user):
         st.info("No issues reported.")
         return
 
-    if issues and hasattr(issues[0], "keys"):
-        df = pd.DataFrame(issues, columns=issues[0].keys())
-    else:
-        df = pd.DataFrame(issues)
-
-    if "created_at" in df.columns:
-        dt = pd.to_datetime(df["created_at"], errors="coerce")
-        df["date"] = dt.dt.date
-        df["time"] = dt.dt.strftime("%H:%M")
+    df = rows_to_dataframe(issues)
+    df = add_datetime_columns(df)
 
     display_cols = [c for c in ["id", "title", "category", "status", "date", "time"] if c in df.columns]
     st.dataframe(df[display_cols] if display_cols else df, use_container_width=True)
@@ -50,13 +43,23 @@ def render_issues(conn, user):
         issue_id = st.number_input("Issue ID", min_value=1, step=1)
         status = st.selectbox("Update Status", ["Open", "In Progress", "Resolved"])
         if st.button("Update Issue Status"):
-            conn.execute(
-                """
-                UPDATE issues
-                SET status = ?, resolved_by = ?, resolved_at = ?
-                WHERE id = ?
-                """,
-                (status, user["id"], now_iso(), int(issue_id)),
-            )
+            if status == "Resolved":
+                conn.execute(
+                    """
+                    UPDATE issues
+                    SET status = ?, resolved_by = ?, resolved_at = ?
+                    WHERE id = ?
+                    """,
+                    (status, user["id"], now_iso(), int(issue_id)),
+                )
+            else:
+                conn.execute(
+                    """
+                    UPDATE issues
+                    SET status = ?, resolved_by = NULL, resolved_at = NULL
+                    WHERE id = ?
+                    """,
+                    (status, int(issue_id)),
+                )
             conn.commit()
             st.success("Issue status updated.")

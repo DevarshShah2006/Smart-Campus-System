@@ -1,6 +1,6 @@
 ﻿from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from uuid import uuid4
 import sqlite3
 
@@ -141,7 +141,7 @@ def _attendance_status(lecture, distance_m: float) -> str:
     radius_m = float(lecture["radius_m"])
 
     # Add a small buffer (2 minutes) to start time to account for clock drift
-    start_buffer = start - pd.Timedelta(minutes=2)
+    start_buffer = start - timedelta(minutes=2)
 
     if now < start_buffer:
         return f"Rejected (Too Early - Starts {start.strftime('%H:%M')})"
@@ -190,10 +190,6 @@ def render_teacher_attendance(conn, user):
         # Render GPS capture component
         _render_geolocation_block(use_mock=True)
 
-        # Sync again after component updates URL (ensures values get picked up)
-        if not st.session_state.geo_location:
-            _sync_geo_from_url()
-        
         # Fallback control to force sync if rerun timing misses
         params = _get_query_params()
         col_sync, col_dbg = st.columns([1, 3])
@@ -466,7 +462,8 @@ def render_teacher_attendance(conn, user):
                 if att_records:
                     for record in att_records:
                         status_emoji = "✅" if record[2] == "Present" else ("⏰" if record[2] == "Late" else "❌")
-                        st.text(f"{status_emoji} {record[0]} - {record[1]} - {record[2]} ({record[4]:.1f}m away)")
+                        distance_str = f"{record[4]:.1f}m" if record[4] is not None else "N/A"
+                        st.text(f"{status_emoji} {record[0]} - {record[1]} - {record[2]} ({distance_str} away)")
                 else:
                     st.caption("No attendance marked yet")
 

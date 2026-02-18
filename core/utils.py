@@ -57,15 +57,6 @@ def build_timeline(records: List[Dict]) -> List[Dict]:
     return sorted(records, key=lambda x: x.get("created_at", ""), reverse=True)
 
 
-def dedupe_enrollments(enrollments: List[str]) -> List[str]:
-    unique: set[str] = set(enrollments)
-    return sorted(unique)
-
-
-def to_numpy_matrix(values: List[float]) -> np.ndarray:
-    return np.array(values, dtype=float)
-
-
 def summarize_counts(items: List[Dict], key: str) -> Dict[str, int]:
     summary: Dict[str, int] = {}
     for item in items:
@@ -78,3 +69,23 @@ def to_chart_data(summary: Dict[str, int]) -> Tuple[List[str], np.ndarray]:
     labels = list(summary.keys())
     counts = np.array(list(summary.values()), dtype=int)
     return labels, counts
+
+
+def rows_to_dataframe(rows):
+    """Convert sqlite3.Row results to a pandas DataFrame."""
+    import pandas as pd
+    if not rows:
+        return pd.DataFrame()
+    if hasattr(rows[0], "keys"):
+        return pd.DataFrame(rows, columns=rows[0].keys())
+    return pd.DataFrame(rows)
+
+
+def add_datetime_columns(df, col="created_at"):
+    """Add separate date and time columns from a datetime column."""
+    import pandas as pd
+    if col in df.columns:
+        dt = pd.to_datetime(df[col], errors="coerce")
+        df["date"] = dt.dt.date
+        df["time"] = dt.dt.strftime("%H:%M")
+    return df

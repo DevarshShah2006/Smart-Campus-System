@@ -1,5 +1,4 @@
 import streamlit as st
-from datetime import datetime
 
 from core.security import hash_password
 from core.utils import now_iso
@@ -127,7 +126,6 @@ def render_user_management(conn, user):
             with col2:
                 year = st.selectbox("Year *", [1, 2, 3, 4, 5])
                 batch = st.selectbox("Batch *", [1, 2, 3, 4])
-                email = st.text_input("Email (Optional)")
                 password = st.text_input("Set Password *", type="password")
             
             submitted = st.form_submit_button("✅ Create Student Profile", use_container_width=True)

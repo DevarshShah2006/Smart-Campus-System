@@ -2,7 +2,7 @@ from pathlib import Path
 import streamlit as st
 import pandas as pd
 
-from core.utils import now_iso, UPLOADS_DIR
+from core.utils import now_iso, UPLOADS_DIR, rows_to_dataframe, add_datetime_columns
 
 
 def render_resources(conn, user):
@@ -42,17 +42,8 @@ def render_resources(conn, user):
         st.info("No resources yet.")
         return
 
-    # Build dataframe with safe columns whether rows are dict-like or tuples
-    if records and hasattr(records[0], "keys"):
-        df = pd.DataFrame(records, columns=records[0].keys())
-    else:
-        df = pd.DataFrame(records)
-
-    # Add separate date/time columns
-    if "created_at" in df.columns:
-        dt = pd.to_datetime(df["created_at"], errors="coerce")
-        df["date"] = dt.dt.date
-        df["time"] = dt.dt.strftime("%H:%M")
+    df = rows_to_dataframe(records)
+    df = add_datetime_columns(df)
 
     display_cols = [c for c in ["title", "subject", "date", "time"] if c in df.columns]
     if user.get("role_name") != "student" and "file_path" in df.columns:

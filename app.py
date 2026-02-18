@@ -5,7 +5,6 @@ import streamlit as st
 from core.db import (
     init_db,
     seed_defaults,
-    get_db,
 )
 from core.security import hash_password
 from core.utils import ensure_dirs
@@ -189,7 +188,7 @@ else:
             ]
         else:  # admin
             menu_items = [
-            ("🎯", "Dashboard"),
+                ("🎯", "Dashboard"),
                 ("👥", "User Management"),
                 ("📢", "Notices"),
                 ("📅", "Schedule"),

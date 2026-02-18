@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
 
 from core.utils import summarize_counts, to_chart_data
@@ -33,7 +32,6 @@ def render_analytics(conn):
         if data:
             summary = summarize_counts([dict(row) for row in data], "department")
             labels, counts = to_chart_data(summary)
-            counts = np.array(counts)
             fig, ax = plt.subplots()
             ax.pie(counts, labels=labels, autopct="%1.1f%%")
             ax.set_title("Students by Department")

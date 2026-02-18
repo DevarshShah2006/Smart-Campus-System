@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 
-from core.utils import now_iso
+from core.utils import now_iso, rows_to_dataframe
 
 
 def render_feedback(conn, user):
@@ -50,15 +50,22 @@ def render_feedback(conn, user):
             submitted = st.form_submit_button("Submit Feedback")
 
         if submitted:
-            conn.execute(
-                """
-                INSERT INTO feedback (session_id, enrollment, rating, comments, created_at)
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (session_id, user["enrollment"], rating, comments, now_iso()),
-            )
-            conn.commit()
-            st.success("Feedback submitted.")
+            existing = conn.execute(
+                "SELECT id FROM feedback WHERE session_id = ? AND enrollment = ?",
+                (session_id, user["enrollment"]),
+            ).fetchone()
+            if existing:
+                st.warning("You have already submitted feedback for this lecture.")
+            else:
+                conn.execute(
+                    """
+                    INSERT INTO feedback (session_id, enrollment, rating, comments, created_at)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (session_id, user["enrollment"], rating, comments, now_iso()),
+                )
+                conn.commit()
+                st.success("Feedback submitted.")
 
     records = conn.execute(
         """
@@ -70,13 +77,7 @@ def render_feedback(conn, user):
         """
     ).fetchall()
     if records:
-        if records and hasattr(records[0], "keys"):
-            df = pd.DataFrame(records, columns=records[0].keys())
-        else:
-            df = pd.DataFrame(
-                records,
-                columns=["session_id", "rating", "comments", "created_at", "subject", "room", "start_time", "end_time"],
-            )
+        df = rows_to_dataframe(records)
 
         # Add readable date/time columns
         if "start_time" in df.columns:

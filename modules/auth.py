@@ -74,6 +74,12 @@ def login_user(conn):
         if st.button("Login", key="login_admin"):
             user = get_user_by_username(conn, username)
             if user and verify_password(password, user["password_hash"]):
+                actual_role = conn.execute(
+                    "SELECT name FROM roles WHERE id = ?", (user["role_id"],)
+                ).fetchone()
+                if not actual_role or actual_role["name"] != role:
+                    st.error(f"This account is not a {role}.")
+                    return
                 st.session_state.user = dict(user)
                 st.session_state.role = role
                 st.success("Logged in successfully.")
@@ -85,4 +91,8 @@ def login_user(conn):
 def render_auth(conn):
     st.markdown("### 🔐 Smart Campus System Login")
     st.markdown("---")
-    login_user(conn)
+    tab1, tab2 = st.tabs(["🔑 Login", "📝 Student Registration"])
+    with tab1:
+        login_user(conn)
+    with tab2:
+        register_student(conn)

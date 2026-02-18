@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 
-from core.utils import now_iso
+from core.utils import now_iso, rows_to_dataframe
 
 
 def render_events(conn, user):
@@ -34,10 +34,7 @@ def render_events(conn, user):
         st.info("No events yet.")
         return
 
-    if events and hasattr(events[0], "keys"):
-        df = pd.DataFrame(events, columns=events[0].keys())
-    else:
-        df = pd.DataFrame(events)
+    df = rows_to_dataframe(events)
 
     display_cols = [c for c in ["id", "title", "event_date", "location"] if c in df.columns]
     st.dataframe(df[display_cols] if display_cols else df, use_container_width=True)

@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 
+from core.utils import rows_to_dataframe
+
 
 def render_schedule(conn, user):
     st.subheader("Lecture Schedule")
@@ -29,10 +31,7 @@ def render_schedule(conn, user):
         st.info("No schedule entries yet.")
         return
 
-    if schedules and hasattr(schedules[0], "keys"):
-        df = pd.DataFrame(schedules, columns=schedules[0].keys())
-    else:
-        df = pd.DataFrame(schedules)
+    df = rows_to_dataframe(schedules)
 
     display_cols = [c for c in ["day", "time", "subject", "room"] if c in df.columns]
     st.dataframe(df[display_cols] if display_cols else df, use_container_width=True)
