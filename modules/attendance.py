@@ -384,22 +384,6 @@ def render_teacher_attendance(conn, user):
                     - 🌍 Location: ({lat:.6f}, {lon:.6f})
                     """)
 
-                if st.session_state.get("show_full_qr") and st.session_state.get("full_qr_path"):
-                    st.markdown("---")
-                    st.markdown("### 📱 QR Code (Fullscreen)")
-                    col1, col2, col3 = st.columns([1, 2, 1])
-                    with col2:
-                        st.image(
-                            st.session_state.full_qr_path,
-                            caption=st.session_state.get("full_qr_caption", "QR Code"),
-                            use_container_width=True,
-                        )
-                    col1, col2, col3 = st.columns([1, 1, 1])
-                    with col2:
-                        if st.button("✖️ Close Fullscreen", key=f"close_full_qr_{session_id}", use_container_width=True):
-                            st.session_state.show_full_qr = False
-                            st.rerun()
-
                 # Reset helpers
                 st.session_state["force_show_form"] = False
                 # Keep geo for convenience; do not clear immediately
@@ -411,7 +395,32 @@ def render_teacher_attendance(conn, user):
 
             except Exception as e:
                 st.error(f"❌ Error creating session: {str(e)}")
-    
+
+        # Fullscreen QR display (outside submission block so it persists across reruns)
+        if st.session_state.get("show_full_qr") and st.session_state.get("full_qr_path"):
+            st.markdown("---")
+            st.markdown("### 📱 QR Code (Fullscreen)")
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                from pathlib import Path
+                qr_file = Path(st.session_state.full_qr_path)
+                if qr_file.exists():
+                    st.image(
+                        st.session_state.full_qr_path,
+                        caption=st.session_state.get("full_qr_caption", "QR Code"),
+                        use_container_width=True,
+                    )
+                else:
+                    st.error("QR code file no longer exists.")
+                    st.session_state.show_full_qr = False
+            col1, col2, col3 = st.columns([1, 1, 1])
+            with col2:
+                if st.button("✖️ Close Fullscreen", key="close_full_qr", use_container_width=True):
+                    st.session_state.show_full_qr = False
+                    st.session_state.pop("full_qr_path", None)
+                    st.session_state.pop("full_qr_caption", None)
+                    st.rerun()
+
     with tab2:
         st.subheader("📋 Recent Lecture Sessions")
         sessions = conn.execute(
