@@ -1,5 +1,4 @@
 import streamlit as st
-import pandas as pd
 
 from core.utils import rows_to_dataframe, add_datetime_columns
 
@@ -34,27 +33,71 @@ def render_search(conn):
     ).fetchall()
 
     st.markdown("**Notices**")
-    df_notices = rows_to_dataframe(notices)
-    df_notices = add_datetime_columns(df_notices)
-    display = [c for c in ["title", "body", "date", "time"] if c in df_notices.columns]
-    st.dataframe(df_notices[display] if display else df_notices, use_container_width=True)
+    if notices:
+        for n in notices:
+            _n = dict(n) if hasattr(n, 'keys') else {"title": n[0], "body": n[1], "created_at": n[2]}
+            _d = str(_n.get('created_at', ''))[:10]
+            _t = str(_n.get('created_at', ''))[11:16]
+            st.markdown(f"""
+<div style='padding:0.6rem;margin:0.4rem 0;border-left:3px solid #666;background:rgba(255,255,255,0.05);border-radius:6px;'>
+<b>{_n['title']}</b><br>
+<span style='font-size:0.85rem'>{_n.get('body','')[:100]}</span><br>
+<small style='color:#888'>📅 {_d} &nbsp; ⏰ {_t}</small>
+</div>""", unsafe_allow_html=True)
+    else:
+        st.caption("No results")
 
     st.markdown("**Issues**")
-    st.dataframe(pd.DataFrame(issues), use_container_width=True)
+    if issues:
+        for i in issues:
+            _i = dict(i) if hasattr(i, 'keys') else {"title": i[0], "description": i[1], "status": i[2]}
+            _color = "green" if _i['status'] == "Resolved" else ("orange" if _i['status'] == "In Progress" else "red")
+            st.markdown(f"""
+<div style='padding:0.6rem;margin:0.4rem 0;border-left:3px solid {_color};background:rgba(255,255,255,0.05);border-radius:6px;'>
+<b>{_i['title']}</b><br>
+<span style='font-size:0.85rem'>{_i.get('description','')[:100]}</span><br>
+<small style='color:{_color}'>{_i['status']}</small>
+</div>""", unsafe_allow_html=True)
+    else:
+        st.caption("No results")
 
     st.markdown("**Events**")
-    df_events = rows_to_dataframe(events)
-    df_events = add_datetime_columns(df_events, col="event_date")
-    display_ev = [c for c in ["title", "description", "date", "time"] if c in df_events.columns]
-    st.dataframe(df_events[display_ev] if display_ev else df_events, use_container_width=True)
+    if events:
+        for e in events:
+            _e = dict(e) if hasattr(e, 'keys') else {"title": e[0], "description": e[1], "event_date": e[2]}
+            st.markdown(f"""
+<div style='padding:0.6rem;margin:0.4rem 0;border-left:3px solid #4a9eff;background:rgba(255,255,255,0.05);border-radius:6px;'>
+<b>{_e['title']}</b><br>
+<span style='font-size:0.85rem'>{_e.get('description','')[:100]}</span><br>
+<small style='color:#888'>📅 {str(_e.get('event_date',''))[:10]}</small>
+</div>""", unsafe_allow_html=True)
+    else:
+        st.caption("No results")
 
     st.markdown("**Resources**")
-    st.dataframe(pd.DataFrame(resources), use_container_width=True)
+    if resources:
+        for r in resources:
+            _r = dict(r) if hasattr(r, 'keys') else {"title": r[0], "subject": r[1]}
+            st.markdown(f"""
+<div style='padding:0.6rem;margin:0.4rem 0;border-left:3px solid #a855f7;background:rgba(255,255,255,0.05);border-radius:6px;'>
+<b>{_r['title']}</b><br>
+<small style='color:#888'>📚 {_r.get('subject','')}</small>
+</div>""", unsafe_allow_html=True)
+    else:
+        st.caption("No results")
 
     st.markdown("**Lectures**")
-    df_lec = rows_to_dataframe(lectures)
-    if not df_lec.empty and "start_time" in df_lec.columns:
-        df_lec["date"] = pd.to_datetime(df_lec["start_time"], errors="coerce").dt.date
-        df_lec["time"] = df_lec["start_time"].astype(str).str.slice(11, 16) + " - " + df_lec["end_time"].astype(str).str.slice(11, 16)
-    display_lec = [c for c in ["session_id", "subject", "room", "date", "time", "year", "batch"] if c in df_lec.columns]
-    st.dataframe(df_lec[display_lec] if display_lec else df_lec, use_container_width=True)
+    if lectures:
+        for lec in lectures:
+            _l = dict(lec) if hasattr(lec, 'keys') else {"session_id": lec[0], "subject": lec[1], "room": lec[2], "start_time": lec[3], "end_time": lec[4], "year": lec[5], "batch": lec[6]}
+            _ld = str(_l.get('start_time',''))[:10]
+            _ls = str(_l.get('start_time',''))[11:16]
+            _le = str(_l.get('end_time',''))[11:16]
+            st.markdown(f"""
+<div style='padding:0.6rem;margin:0.4rem 0;border-left:3px solid #22c55e;background:rgba(255,255,255,0.05);border-radius:6px;'>
+<b>📚 {_l['subject']}</b> &mdash; {_l['room']}<br>
+<small style='color:#888'>📅 {_ld} &nbsp; ⏰ {_ls} - {_le}</small><br>
+<small style='color:#888'>🎓 Year {_l.get('year','-')} &nbsp; Batch {_l.get('batch','-')}</small>
+</div>""", unsafe_allow_html=True)
+    else:
+        st.caption("No results")

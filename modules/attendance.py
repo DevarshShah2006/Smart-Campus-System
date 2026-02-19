@@ -444,19 +444,15 @@ def render_teacher_attendance(conn, user):
             _s_date = str(session[3])[:10]
             _s_start = str(session[3])[11:16]
             _s_end = str(session[4])[11:16]
-            with st.expander(f"📚 {session[1]} - {session[0]} | 🎓 Y{session[5] or '-'} B{session[6] or '-'} ({session[7]} students)"):
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.write(f"**Room:** {session[2]}")
-                    st.write(f"**📅 Date:** {_s_date}")
-                with col2:
-                    st.write(f"**⏰ Time:** {_s_start} - {_s_end}")
-                    st.write(f"**Attendance:** {session[7]} students")
-                with col3:
-                    st.write(f"**🎓 Year/Batch:** Y{session[5] or '-'} B{session[6] or '-'}")
-                    if st.button("📊 View Details", key=f"view_{session[0]}"):
-                        st.session_state.teacher_view_session = session[0]
-                        selected_session = session[0]
+            with st.expander(f"📚 {session[1]} | Y{session[5] or '-'}B{session[6] or '-'} ({session[7]} students)"):
+                st.write(f"**🏫 Room:** {session[2]}")
+                st.write(f"**📅 Date:** {_s_date}")
+                st.write(f"**⏰ Time:** {_s_start} - {_s_end}")
+                st.write(f"**🎓 Year/Batch:** Y{session[5] or '-'} / B{session[6] or '-'}")
+                st.write(f"**👥 Attendance:** {session[7]} students")
+                if st.button("📊 View Details", key=f"view_{session[0]}"):
+                    st.session_state.teacher_view_session = session[0]
+                    selected_session = session[0]
                 
                 # Show attendance for this session
                 att_records = conn.execute(
@@ -571,7 +567,12 @@ def render_student_attendance(conn, user):
                 s_date = str(lec['start_time'])[:10]
                 s_time = str(lec['start_time'])[11:16]
                 e_time = str(lec['end_time'])[11:16]
-                st.text(f"📚 {lec['subject']} | 🏫 {lec['room']} | 📅 {s_date} | ⏰ {s_time}-{e_time} | 🎓 Y{lec['year']} B{lec['batch']}")
+                st.markdown(f"""
+<div style='padding:0.5rem;margin:0.3rem 0;border-left:3px solid #22c55e;background:rgba(255,255,255,0.05);border-radius:6px;'>
+<b>📚 {lec['subject']}</b> &mdash; {lec['room']}<br>
+<small>📅 {s_date} &nbsp; ⏰ {s_time}-{e_time}</small><br>
+<small>🎓 Year {lec['year']} &nbsp; Batch {lec['batch']}</small>
+</div>""", unsafe_allow_html=True)
             search_lecture_map = {row["session_id"]: row for row in search_results}
             all_lecture_map.update(search_lecture_map)
         else:
@@ -585,7 +586,7 @@ def render_student_attendance(conn, user):
         selected = st.selectbox(
             "📚 Select Lecture Session",
             ["-- Select --"] + list(matching_lecture_map.keys()),
-            format_func=lambda x: f"{matching_lecture_map[x]['subject']} - {matching_lecture_map[x]['room']} | 📅 {str(matching_lecture_map[x]['start_time'])[:10]} | ⏰ {str(matching_lecture_map[x]['start_time'])[11:16]} | 🎓 Y{matching_lecture_map[x]['year']} B{matching_lecture_map[x]['batch']}" if x != "-- Select --" else "-- Select --"
+            format_func=lambda x: f"{matching_lecture_map[x]['subject']} | {str(matching_lecture_map[x]['start_time'])[:10]} | Y{matching_lecture_map[x]['year']}B{matching_lecture_map[x]['batch']}" if x != "-- Select --" else "-- Select --"
         )
         if selected == "-- Select --":
             # Show attendance history
