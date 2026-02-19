@@ -59,20 +59,22 @@ def render_student_dashboard(conn, user):
     ).fetchone()
 
     if latest_notice:
-        n_date = str(latest_notice["created_at"])[:10]
-        n_time = str(latest_notice["created_at"])[11:16]
+        notice = dict(latest_notice)
+        n_date = str(notice.get("created_at", ""))[:10]
+        n_time = str(notice.get("created_at", ""))[11:16]
+        poster = notice.get("poster", "Unknown") or "Unknown"
         priority_color = "#666"
-        if "[Urgent]" in latest_notice["title"]:
+        if "[Urgent]" in notice.get("title", ""):
             priority_color = "red"
-        elif "[Important]" in latest_notice["title"]:
+        elif "[Important]" in notice.get("title", ""):
             priority_color = "orange"
 
         st.markdown(f"""
 <div style='padding:1rem;margin:0.5rem 0;background:rgba(255,255,255,0.05);border-left:4px solid {priority_color};border-radius:8px;'>
-    <h4 style='margin:0 0 0.5rem 0;color:{priority_color};'>{latest_notice['title']}</h4>
-    <p style='margin:0.5rem 0;line-height:1.6;'>{latest_notice['body']}</p>
+    <h4 style='margin:0 0 0.5rem 0;color:{priority_color};'>{notice['title']}</h4>
+    <p style='margin:0.5rem 0;line-height:1.6;'>{notice['body']}</p>
     <p style='color:#888;font-size:0.85rem;margin:0;'>
-        👤 {latest_notice.get('poster', 'Unknown')} &nbsp; 📅 {n_date} &nbsp; ⏰ {n_time}
+        👤 {poster} &nbsp; 📅 {n_date} &nbsp; ⏰ {n_time}
     </p>
 </div>
 """, unsafe_allow_html=True)
