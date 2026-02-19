@@ -441,16 +441,19 @@ def render_teacher_attendance(conn, user):
         
         selected_session = st.session_state.get("teacher_view_session")
         for session in sessions:
-            with st.expander(f"📚 {session[1]} - {session[0]} ({session[7]} students)"):
+            _s_date = str(session[3])[:10]
+            _s_start = str(session[3])[11:16]
+            _s_end = str(session[4])[11:16]
+            with st.expander(f"📚 {session[1]} - {session[0]} | 🎓 Y{session[5] or '-'} B{session[6] or '-'} ({session[7]} students)"):
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     st.write(f"**Room:** {session[2]}")
-                    st.write(f"**Start:** {session[3][:16]}")
+                    st.write(f"**📅 Date:** {_s_date}")
                 with col2:
-                    st.write(f"**End:** {session[4][:16]}")
+                    st.write(f"**⏰ Time:** {_s_start} - {_s_end}")
                     st.write(f"**Attendance:** {session[7]} students")
                 with col3:
-                    st.write(f"**Year/Batch:** Y{session[5] or '-'} B{session[6] or '-'}")
+                    st.write(f"**🎓 Year/Batch:** Y{session[5] or '-'} B{session[6] or '-'}")
                     if st.button("📊 View Details", key=f"view_{session[0]}"):
                         st.session_state.teacher_view_session = session[0]
                         selected_session = session[0]
@@ -545,7 +548,7 @@ def render_student_attendance(conn, user):
         st.warning(f"⚠️ No lectures found for Year {student_year}, Batch {student_batch}.")
     
     # Show search option for other year/batch (always visible)
-    with st.expander("🔍 Search lectures from other year/batch"):
+    with st.expander("🔍 Search lectures"):
         search_year = st.number_input("Year", value=1, step=1, key="search_year_input")
         search_batch = st.number_input("Batch", value=1, step=1, key="search_batch_input")
         
@@ -564,6 +567,11 @@ def render_student_attendance(conn, user):
         
         if search_results:
             st.info(f"Found {len(search_results)} lectures for Year {search_year}, Batch {search_batch}")
+            for lec in search_results:
+                s_date = str(lec['start_time'])[:10]
+                s_time = str(lec['start_time'])[11:16]
+                e_time = str(lec['end_time'])[11:16]
+                st.text(f"📚 {lec['subject']} | 🏫 {lec['room']} | 📅 {s_date} | ⏰ {s_time}-{e_time} | 🎓 Y{lec['year']} B{lec['batch']}")
             search_lecture_map = {row["session_id"]: row for row in search_results}
             all_lecture_map.update(search_lecture_map)
         else:
@@ -577,7 +585,7 @@ def render_student_attendance(conn, user):
         selected = st.selectbox(
             "📚 Select Lecture Session",
             ["-- Select --"] + list(matching_lecture_map.keys()),
-            format_func=lambda x: f"{matching_lecture_map[x]['subject']} - {matching_lecture_map[x]['room']} ({matching_lecture_map[x]['start_time'][:16]})" if x != "-- Select --" else "-- Select --"
+            format_func=lambda x: f"{matching_lecture_map[x]['subject']} - {matching_lecture_map[x]['room']} | 📅 {str(matching_lecture_map[x]['start_time'])[:10]} | ⏰ {str(matching_lecture_map[x]['start_time'])[11:16]} | 🎓 Y{matching_lecture_map[x]['year']} B{matching_lecture_map[x]['batch']}" if x != "-- Select --" else "-- Select --"
         )
         if selected == "-- Select --":
             # Show attendance history
@@ -643,10 +651,15 @@ def render_student_attendance(conn, user):
             st.error("❌ Invalid or expired session.")
             return
 
+    _lec_date = str(lecture['start_time'])[:10]
+    _lec_start = str(lecture['start_time'])[11:16]
+    _lec_end = str(lecture['end_time'])[11:16]
     st.markdown(f"""
     ### 📚 {lecture['subject']}
     **🏫 Room:** {lecture['room']}  
-    **⏰ Time:** {lecture['start_time'][:16]} - {lecture['end_time'][:16]}  
+    **📅 Date:** {_lec_date}  
+    **⏰ Time:** {_lec_start} - {_lec_end}  
+    **🎓 Year / Batch:** Y{lecture['year']} / B{lecture['batch']}  
     **📍 Radius:** {lecture['radius_m']}m
     """)
     
@@ -663,12 +676,14 @@ def render_student_attendance(conn, user):
     
     if existing:
         status_color = "green" if existing[0] == "Present" else ("orange" if existing[0] == "Late" else "red")
+        _marked_date = str(existing[1])[:10]
+        _marked_time = str(existing[1])[11:16]
         st.markdown(f"""
         <div style='padding: 2rem; background: linear-gradient(135deg, rgba(46,213,115,0.2) 0%, rgba(0,184,148,0.2) 100%); 
                     border-radius: 12px; text-align: center; border: 2px solid {status_color};'>
             <h2 style='color: {status_color}; margin: 0;'>✅ Attendance Already Marked</h2>
             <p style='font-size: 1.2rem; margin: 1rem 0;'>Status: <strong>{existing[0]}</strong></p>
-            <p style='color: #888;'>Marked at: {existing[1][:16]}</p>
+            <p style='color: #888;'>📅 Date: {_marked_date} | ⏰ Time: {_marked_time}</p>
         </div>
         """, unsafe_allow_html=True)
         return

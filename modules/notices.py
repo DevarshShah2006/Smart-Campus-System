@@ -63,7 +63,7 @@ def render_notice_board(conn, user):
             <h3 style='margin: 0 0 0.5rem 0; color: {priority_color};'>{item['title']}</h3>
             <p style='margin: 0.5rem 0 1rem 0; line-height: 1.6;'>{item['body']}</p>
             <p style='color: #888; font-size: 0.9rem; margin: 0;'>
-                👤 Posted by {item.get('poster', 'Unknown')} | 📅 {item['created_at'][:16]}
+                👤 Posted by {item.get('poster', 'Unknown')} | 📅 {str(item['created_at'])[:10]} | ⏰ {str(item['created_at'])[11:16]}
             </p>
         </div>
         """, unsafe_allow_html=True)
