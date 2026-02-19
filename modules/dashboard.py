@@ -1,7 +1,8 @@
 import streamlit as st
+import pandas as pd
 import matplotlib.pyplot as plt
 
-from core.utils import build_timeline
+from core.utils import build_timeline, rows_to_dataframe
 
 
 def render_student_dashboard(conn, user):
@@ -29,6 +30,9 @@ def render_student_dashboard(conn, user):
     ).fetchone()[0]
 
     attendance_pct = (attended_lectures / total_lectures * 100) if total_lectures else 0
+
+    # ── 1. Attendance Pie Chart ──
+    st.markdown("### 📊 Your Attendance")
     st.metric("✅ Attendance %", f"{attendance_pct:.1f}%", help="Based on lectures available for your year/batch")
 
     if total_lectures:
@@ -43,32 +47,47 @@ def render_student_dashboard(conn, user):
         )
         ax.axis("equal")
         st.pyplot(fig, use_container_width=False)
+    else:
+        st.info("No lectures available yet.")
 
-    attendance = conn.execute(
-        "SELECT session_id, status, timestamp FROM attendance WHERE enrollment = ? ORDER BY timestamp DESC LIMIT 5",
-        (user["enrollment"],),
-    ).fetchall()
-    notices = conn.execute(
-        "SELECT title, body, created_at FROM notices ORDER BY created_at DESC LIMIT 5"
-    ).fetchall()
-    events = conn.execute(
-        "SELECT title, event_date, location FROM events ORDER BY event_date DESC LIMIT 5"
-    ).fetchall()
+    st.markdown("---")
 
-    timeline = []
-    for item in attendance:
-        timeline.append({"type": "Attendance", "summary": f"{item['session_id']} - {item['status']}", "created_at": item["timestamp"]})
-    for item in notices:
-        timeline.append({"type": "Notice", "summary": item["title"], "created_at": item["created_at"]})
-    for item in events:
-        timeline.append({"type": "Event", "summary": f"{item['title']} at {item['location']}", "created_at": item["event_date"]})
+    # ── 2. Latest Notice ──
+    st.markdown("### 📢 Latest Notice")
+    latest_notice = conn.execute(
+        "SELECT n.title, n.body, n.created_at, u.name as poster FROM notices n LEFT JOIN users u ON n.posted_by = u.id ORDER BY n.created_at DESC LIMIT 1"
+    ).fetchone()
 
-    sorted_timeline = build_timeline(timeline)
-    if not sorted_timeline:
-        st.info("No recent activity.")
-        return
+    if latest_notice:
+        n_date = str(latest_notice["created_at"])[:10]
+        n_time = str(latest_notice["created_at"])[11:16]
+        priority_color = "#666"
+        if "[Urgent]" in latest_notice["title"]:
+            priority_color = "red"
+        elif "[Important]" in latest_notice["title"]:
+            priority_color = "orange"
 
-    for entry in sorted_timeline:
-        st.markdown(f"**{entry['type']}**: {entry['summary']}")
-        st.caption(entry["created_at"])
-        st.divider()
+        st.markdown(f"""
+<div style='padding:1rem;margin:0.5rem 0;background:rgba(255,255,255,0.05);border-left:4px solid {priority_color};border-radius:8px;'>
+    <h4 style='margin:0 0 0.5rem 0;color:{priority_color};'>{latest_notice['title']}</h4>
+    <p style='margin:0.5rem 0;line-height:1.6;'>{latest_notice['body']}</p>
+    <p style='color:#888;font-size:0.85rem;margin:0;'>
+        👤 {latest_notice.get('poster', 'Unknown')} &nbsp; 📅 {n_date} &nbsp; ⏰ {n_time}
+    </p>
+</div>
+""", unsafe_allow_html=True)
+    else:
+        st.info("📭 No notices yet.")
+
+    st.markdown("---")
+
+    # ── 3. Your Schedule ──
+    st.markdown("### 🗓️ Your Schedule")
+    schedules = conn.execute("SELECT * FROM schedules ORDER BY day, time").fetchall()
+
+    if schedules:
+        df = rows_to_dataframe(schedules)
+        display_cols = [c for c in ["day", "time", "subject", "room"] if c in df.columns]
+        st.dataframe(df[display_cols] if display_cols else df, use_container_width=True)
+    else:
+        st.info("No schedule entries yet.")
