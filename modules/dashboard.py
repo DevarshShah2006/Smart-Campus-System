@@ -59,25 +59,36 @@ def render_student_dashboard(conn, user):
     ).fetchone()
 
     if latest_notice:
-        notice = dict(latest_notice)
+        try:
+            notice = dict(latest_notice)
+        except Exception:
+            notice = {
+                "title": latest_notice[0] if len(latest_notice) > 0 else "",
+                "body": latest_notice[1] if len(latest_notice) > 1 else "",
+                "created_at": latest_notice[2] if len(latest_notice) > 2 else "",
+                "poster": latest_notice[3] if len(latest_notice) > 3 else "Unknown",
+            }
+        n_title = str(notice.get("title", ""))
+        n_body = str(notice.get("body", ""))
         n_date = str(notice.get("created_at", ""))[:10]
         n_time = str(notice.get("created_at", ""))[11:16]
-        poster = notice.get("poster", "Unknown") or "Unknown"
+        poster = str(notice.get("poster", "Unknown") or "Unknown")
         priority_color = "#666"
-        if "[Urgent]" in notice.get("title", ""):
+        if "[Urgent]" in n_title:
             priority_color = "red"
-        elif "[Important]" in notice.get("title", ""):
+        elif "[Important]" in n_title:
             priority_color = "orange"
 
-        st.markdown(f"""
-<div style='padding:1rem;margin:0.5rem 0;background:rgba(255,255,255,0.05);border-left:4px solid {priority_color};border-radius:8px;'>
-    <h4 style='margin:0 0 0.5rem 0;color:{priority_color};'>{notice['title']}</h4>
-    <p style='margin:0.5rem 0;line-height:1.6;'>{notice['body']}</p>
-    <p style='color:#888;font-size:0.85rem;margin:0;'>
-        👤 {poster} &nbsp; 📅 {n_date} &nbsp; ⏰ {n_time}
-    </p>
-</div>
-""", unsafe_allow_html=True)
+        st.markdown(
+            f"<div style='padding:1rem;margin:0.5rem 0;background:rgba(255,255,255,0.05);"
+            f"border-left:4px solid {priority_color};border-radius:8px;'>"
+            f"<h4 style='margin:0 0 0.5rem 0;color:{priority_color};'>{n_title}</h4>"
+            f"<p style='margin:0.5rem 0;line-height:1.6;'>{n_body}</p>"
+            f"<p style='color:#888;font-size:0.85rem;margin:0;'>"
+            f"\U0001f464 {poster} &nbsp; \U0001f4c5 {n_date} &nbsp; \u23f0 {n_time}"
+            f"</p></div>",
+            unsafe_allow_html=True,
+        )
     else:
         st.info("📭 No notices yet.")
 
