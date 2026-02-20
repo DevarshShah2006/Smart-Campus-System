@@ -576,35 +576,32 @@ def render_student_attendance(conn, user):
     if not matching_lectures:
         st.warning(f"⚠️ No lectures found for Year {student_year}, Batch {student_batch}.")
     
-    # Show search option for other year/batch (always visible)
-    with st.expander("🔍 Search lectures"):
-        search_year = st.number_input("Year", value=1, step=1, key="search_year_input")
-        search_batch = st.number_input("Batch", value=1, step=1, key="search_batch_input")
-        
-        search_conn = get_db()
-        try:
-            search_results = search_conn.execute(
-                """
-                SELECT * FROM lectures
-                WHERE (year IS NULL OR year = ?) AND (batch IS NULL OR batch = ?)
-                ORDER BY start_time DESC LIMIT 20
-                """,
-                (search_year, search_batch),
-            ).fetchall()
-        finally:
-            search_conn.close()
-        
-        if search_results:
-            st.info(f"Found {len(search_results)} lectures for Year {search_year}, Batch {search_batch}")
-            for lec in search_results:
-                s_date = str(lec['start_time'])[:10]
-                s_time = str(lec['start_time'])[11:16]
-                e_time = str(lec['end_time'])[11:16]
-                st.text(f"📚 {lec['subject']} | 🏫 {lec['room']} | 📅 {s_date} | ⏰ {s_time}-{e_time} | 🎓 Y{lec['year']} B{lec['batch']}")
-            search_lecture_map = {row["session_id"]: row for row in search_results}
-            all_lecture_map.update(search_lecture_map)
-        else:
-            st.info(f"No lectures found for Year {search_year}, Batch {search_batch}")
+    # Show search option for other year/batch (only if no lectures for student)
+    if not matching_lectures:
+        with st.expander("🔍 Search lectures"):
+            search_year = st.number_input("Year", value=1, step=1, key="search_year_input")
+            search_batch = st.number_input("Batch", value=1, step=1, key="search_batch_input")
+            search_conn = get_db()
+            try:
+                search_results = search_conn.execute(
+                    """
+                    SELECT * FROM lectures
+                    WHERE (year IS NULL OR year = ?) AND (batch IS NULL OR batch = ?)
+                    ORDER BY start_time DESC LIMIT 20
+                    """,
+                    (search_year, search_batch),
+                ).fetchall()
+            finally:
+                search_conn.close()
+            if search_results:
+                st.info(f"Found {len(search_results)} lectures for Year {search_year}, Batch {search_batch}")
+                for lec in search_results:
+                    s_date = str(lec['start_time'])[:10]
+                    s_time = str(lec['start_time'])[11:16]
+                    e_time = str(lec['end_time'])[11:16]
+                    st.text(f"📚 {lec['subject']} | 🏫 {lec['room']} | 📅 {s_date} | ⏰ {s_time}-{e_time} | 🎓 Y{lec['year']} B{lec['batch']}")
+            else:
+                st.info(f"No lectures found for Year {search_year}, Batch {search_batch}")
     
     if not matching_lectures:
         st.info("Ask your teacher to create a lecture for your year/batch, then refresh.")
