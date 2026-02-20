@@ -8,13 +8,26 @@ def render_schedule(conn, user):
     st.subheader("Lecture Schedule")
 
     if user.get("role_name") != "student":
+        # Prepare year/batch choices from existing student data
+        student_rows = conn.execute(
+            "SELECT u.year, u.batch FROM users u LEFT JOIN roles r ON u.role_id = r.id WHERE r.name = 'student'"
+        ).fetchall()
+        available_years = sorted({row["year"] for row in student_rows if row["year"] is not None})
+        for y in [1, 2, 3, 4, 5]:
+            if y not in available_years:
+                available_years.append(y)
+        available_years = sorted(available_years)
+
         with st.form("schedule_form"):
             day = st.selectbox("Day", ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"])
             time = st.text_input("Time (e.g., 10:00-11:00)")
             subject = st.text_input("Subject")
             room = st.text_input("Room")
-            year = st.number_input("Year", min_value=1, max_value=5, step=1)
-            batch = st.number_input("Batch", min_value=1, max_value=10, step=1)
+            year = st.selectbox("Year", available_years, index=0)
+            available_batches = sorted({row["batch"] for row in student_rows if row["year"] == year and row["batch"] is not None})
+            if not available_batches:
+                available_batches = [1, 2, 3, 4]
+            batch = st.selectbox("Batch", available_batches, index=0)
             submitted = st.form_submit_button("Add Schedule")
 
         if submitted:

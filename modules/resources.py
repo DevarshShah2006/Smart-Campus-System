@@ -11,11 +11,25 @@ def render_resources(conn, user):
     upload_dir.mkdir(parents=True, exist_ok=True)
 
     if user.get("role_name") != "student":
+        # build sensible year/batch choices from existing students
+        student_rows = conn.execute(
+            "SELECT u.year, u.batch FROM users u LEFT JOIN roles r ON u.role_id = r.id WHERE r.name = 'student'"
+        ).fetchall()
+        available_years = sorted({row["year"] for row in student_rows if row["year"] is not None})
+        for y in [1, 2, 3, 4, 5]:
+            if y not in available_years:
+                available_years.append(y)
+        available_years = sorted(available_years)
+
         with st.form("resource_form"):
             title = st.text_input("Resource Title")
             subject = st.text_input("Subject")
-            year = st.number_input("Year", min_value=1, max_value=5, step=1)
-            batch = st.number_input("Batch", min_value=1, max_value=10, step=1)
+            year = st.selectbox("Year", available_years, index=0)
+            # batches available for selected year
+            available_batches = sorted({row["batch"] for row in student_rows if row["year"] == year and row["batch"] is not None})
+            if not available_batches:
+                available_batches = [1, 2, 3, 4]
+            batch = st.selectbox("Batch", available_batches, index=0)
             file = st.file_uploader("Upload PDF/PPT", type=["pdf", "ppt", "pptx"])
             submitted = st.form_submit_button("Upload Resource")
 
