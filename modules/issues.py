@@ -65,3 +65,4 @@ def render_issues(conn, user):
                 )
             conn.commit()
             st.success("Issue status updated.")
+            st.rerun()
