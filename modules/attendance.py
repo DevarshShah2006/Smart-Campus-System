@@ -837,8 +837,16 @@ def render_attendance_analytics(conn):
     if df.empty or "timestamp" not in df.columns:
         st.info("No attendance data yet.")
         return
-    
-    df["date"] = pd.to_datetime(df["timestamp"]).dt.date
+
+    # Parse timestamps defensively; coerce invalid values to NaT
+    df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
+    # Drop rows with invalid timestamps
+    df = df.dropna(subset=["timestamp"]).copy()
+    if df.empty:
+        st.info("No valid attendance timestamps available.")
+        return
+
+    df["date"] = df["timestamp"].dt.date
     summary = df.groupby(["date", "status"]).size().unstack(fill_value=0)
 
     fig, ax = plt.subplots()
