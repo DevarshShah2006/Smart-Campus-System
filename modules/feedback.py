@@ -7,9 +7,25 @@ from core.utils import now_iso, rows_to_dataframe
 def render_feedback(conn, user):
     st.subheader("Lecture Feedback")
 
-    lectures = conn.execute(
-        "SELECT session_id, subject, room, start_time, end_time FROM lectures ORDER BY start_time DESC"
-    ).fetchall()
+    # Students may only give feedback for lectures they attended (Present or Late).
+    if user.get("role_name") == "student":
+        att_rows = conn.execute(
+            "SELECT DISTINCT session_id FROM attendance WHERE enrollment = ? AND status IN ('Present', 'Late')",
+            (user.get("enrollment"),),
+        ).fetchall()
+        session_ids = [r["session_id"] for r in att_rows] if att_rows else []
+        if not session_ids:
+            st.info("No attended lectures found for feedback.")
+            return
+        placeholders = ",".join(["?" for _ in session_ids])
+        lectures = conn.execute(
+            f"SELECT session_id, subject, room, start_time, end_time FROM lectures WHERE session_id IN ({placeholders}) ORDER BY start_time DESC",
+            tuple(session_ids),
+        ).fetchall()
+    else:
+        lectures = conn.execute(
+            "SELECT session_id, subject, room, start_time, end_time FROM lectures ORDER BY start_time DESC"
+        ).fetchall()
     if not lectures:
         st.info("No lectures found.")
         return
