@@ -88,26 +88,29 @@ def _render_geolocation_block(use_mock: bool = True):
 
     loc = None
     if st.session_state.gps_request:
-        loc = streamlit_js_eval(
-            js_expressions="""
-            new Promise((resolve) => {
-                if (!navigator.geolocation) {
-                    resolve({ error: "Geolocation not supported by this browser." });
-                    return;
-                }
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => resolve({
-                        lat: pos.coords.latitude,
-                        lon: pos.coords.longitude,
-                        acc: pos.coords.accuracy,
-                        source: "real"
-                    }),
-                    (err) => resolve({ error: err && err.message ? err.message : "GPS permission denied or unavailable." })
-                );
-            })
-            """,
-            key="get_location"
-        )
+        # Show a spinner while the browser attempts to fetch GPS (allow more time)
+        with st.spinner("Getting GPS (may take up to 10 seconds)..."):
+            loc = streamlit_js_eval(
+                js_expressions="""
+                new Promise((resolve) => {
+                    if (!navigator.geolocation) {
+                        resolve({ error: "Geolocation not supported by this browser." });
+                        return;
+                    }
+                    navigator.geolocation.getCurrentPosition(
+                        (pos) => resolve({
+                            lat: pos.coords.latitude,
+                            lon: pos.coords.longitude,
+                            acc: pos.coords.accuracy,
+                            source: "real"
+                        }),
+                        (err) => resolve({ error: err && err.message ? err.message : "GPS permission denied or unavailable." }),
+                        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                    );
+                })
+                """,
+                key="get_location"
+            )
 
     if loc and isinstance(loc, dict) and "lat" in loc and "lon" in loc:
         st.session_state.geo_location = loc
