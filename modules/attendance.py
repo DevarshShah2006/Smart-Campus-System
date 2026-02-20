@@ -577,6 +577,15 @@ def render_student_attendance(conn, user):
         st.warning(f"⚠️ No lectures found for Year {student_year}, Batch {student_batch}.")
     
     # (Second search-expander removed)
+    def _select_session() -> str | None:
+        selected = st.selectbox(
+            "📚 Select Lecture Session",
+            ["-- Select --"] + list(matching_lecture_map.keys()),
+            format_func=lambda x: f"{matching_lecture_map[x]['subject']} - {matching_lecture_map[x]['room']} | 📅 {str(matching_lecture_map[x]['start_time'])[:10]} | ⏰ {str(matching_lecture_map[x]['start_time'])[11:16]} | 🎓 Y{matching_lecture_map[x]['year']} B{matching_lecture_map[x]['batch']}" if x != "-- Select --" else "-- Select --"
+        )
+        if selected == "-- Select --":
+            return None
+        return selected
     if not session_id:
         session_id = _select_session()
         if not session_id:
