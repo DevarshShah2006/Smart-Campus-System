@@ -576,78 +576,7 @@ def render_student_attendance(conn, user):
     if not matching_lectures:
         st.warning(f"⚠️ No lectures found for Year {student_year}, Batch {student_batch}.")
     
-    # Show search option for other year/batch (only if no lectures for student)
-    if not matching_lectures:
-        with st.expander("🔍 Search lectures"):
-            search_year = st.number_input("Year", value=1, step=1, key="search_year_input")
-            search_batch = st.number_input("Batch", value=1, step=1, key="search_batch_input")
-            search_conn = get_db()
-            try:
-                search_results = search_conn.execute(
-                    """
-                    SELECT * FROM lectures
-                    WHERE (year IS NULL OR year = ?) AND (batch IS NULL OR batch = ?)
-                    ORDER BY start_time DESC LIMIT 20
-                    """,
-                    (search_year, search_batch),
-                ).fetchall()
-            finally:
-                search_conn.close()
-            if search_results:
-                st.info(f"Found {len(search_results)} lectures for Year {search_year}, Batch {search_batch}")
-                for lec in search_results:
-                    s_date = str(lec['start_time'])[:10]
-                    s_time = str(lec['start_time'])[11:16]
-                    e_time = str(lec['end_time'])[11:16]
-                    st.text(f"📚 {lec['subject']} | 🏫 {lec['room']} | 📅 {s_date} | ⏰ {s_time}-{e_time} | 🎓 Y{lec['year']} B{lec['batch']}")
-            else:
-                st.info(f"No lectures found for Year {search_year}, Batch {search_batch}")
-    
-    if not matching_lectures:
-        st.info("Ask your teacher to create a lecture for your year/batch, then refresh.")
-        return
-
-    def _select_session() -> str | None:
-        selected = st.selectbox(
-            "📚 Select Lecture Session",
-            ["-- Select --"] + list(matching_lecture_map.keys()),
-            format_func=lambda x: f"{matching_lecture_map[x]['subject']} - {matching_lecture_map[x]['room']} | 📅 {str(matching_lecture_map[x]['start_time'])[:10]} | ⏰ {str(matching_lecture_map[x]['start_time'])[11:16]} | 🎓 Y{matching_lecture_map[x]['year']} B{matching_lecture_map[x]['batch']}" if x != "-- Select --" else "-- Select --"
-        )
-        if selected == "-- Select --":
-            # Show attendance history
-            st.markdown("---")
-            st.subheader("📊 Your Attendance History")
-            history = conn.execute(
-                """
-                SELECT a.session_id, l.subject, l.room, a.status, a.timestamp
-                FROM attendance a
-                LEFT JOIN lectures l ON a.session_id = l.session_id
-                WHERE a.enrollment = ?
-                ORDER BY a.timestamp DESC
-                LIMIT 10
-                """,
-                (user["enrollment"],)
-            ).fetchall()
-
-            if history:
-                for record in history:
-                    status_color = "green" if record[3] == "Present" else ("orange" if record[3] == "Late" else "red")
-                    ts = pd.to_datetime(record[4], errors="coerce")
-                    date_str = ts.strftime("%Y-%m-%d") if pd.notna(ts) else str(record[4])[:10]
-                    time_str = ts.strftime("%H:%M") if pd.notna(ts) else str(record[4])[11:16]
-                    st.markdown(f"""
-                    <div style='padding: 0.75rem; margin: 0.5rem 0; border-left: 4px solid {status_color}; background: rgba(255,255,255,0.05); border-radius: 4px;'>
-                        <strong>{record[1]}</strong> - {record[2]}<br>
-                        Status: <span style='color: {status_color};'>{record[3]}</span><br>
-                        <small>{date_str} {time_str}</small>
-                    </div>
-                    """, unsafe_allow_html=True)
-            else:
-                st.info("No attendance history yet")
-            return None
-
-        return selected
-
+    # (Second search-expander removed)
     if not session_id:
         session_id = _select_session()
         if not session_id:
@@ -789,7 +718,7 @@ def render_student_attendance(conn, user):
             lat, lon, acc = geo
         else:
             lat, lon, acc = manual_lat, manual_lon, manual_acc
-        
+
         if lat == 0.0 and lon == 0.0:
             st.error("❌ Please enable GPS or enter coordinates manually.")
             return
@@ -815,7 +744,7 @@ def render_student_attendance(conn, user):
             )
             conn.commit()
             st.session_state.attendance_lock.add(session_id)
-            
+
             status_color = "green" if "Present" in status else ("orange" if "Late" in status else "red")
             st.markdown(f"""
             <div style='padding: 2rem; background: linear-gradient(135deg, rgba(46,213,115,0.3) 0%, rgba(0,184,148,0.3) 100%); 
@@ -825,37 +754,7 @@ def render_student_attendance(conn, user):
                 <p style='font-size: 1.1rem;'>Distance: {distance_m:.1f}m from classroom</p>
             </div>
             """, unsafe_allow_html=True)
-            
-            # Generate and show receipt QR
-            st.markdown("---")
-            st.markdown("#### 📋 Attendance Receipt QR")
-            try:
-                receipt_url = f"{APP_BASE_URL}/?session_id={session_id}&receipt=true&enrollment={user['enrollment']}"
-                receipt_qr = generate_qr(receipt_url)
-                if receipt_qr and receipt_qr.exists():
-                    file_size = receipt_qr.stat().st_size
-                    col_receipt, col_info = st.columns(2)
-                    with col_receipt:
-                        st.image(str(receipt_qr), caption="Receipt QR Code", width=200)
-                        with st.expander("📁 Receipt QR Details", expanded=False):
-                            st.caption(f"📁 File: {receipt_qr.name}")
-                            st.caption(f"📊 Size: {file_size} bytes")
-                            st.caption(f"✅ Generated: Yes")
-                    with col_info:
-                        st.markdown(f"""
-                        **✅ Attendance Confirmed**
-                        - Student: {user['name']}
-                        - Enrollment: {user['enrollment']}
-                        - Session: {session_id}
-                        - Status: **{status}**
-                        - Time: {now_local().strftime('%H:%M:%S')}
-                        - Distance: {distance_m:.1f}m
-                        """)
-                else:
-                    st.warning("⚠️ Receipt QR file not generated properly")
-            except Exception as e:
-                st.warning(f"Could not generate receipt QR: {e}")
-            
+
         except sqlite3.IntegrityError:
             st.error("❌ Attendance already submitted for this session.")
 

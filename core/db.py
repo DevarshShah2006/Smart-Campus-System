@@ -105,7 +105,9 @@ def init_db():
             subject TEXT NOT NULL,
             file_path TEXT NOT NULL,
             uploaded_by INTEGER NOT NULL,
-            created_at TEXT NOT NULL
+            created_at TEXT NOT NULL,
+            year INTEGER,
+            batch INTEGER
         )
         """
     )
@@ -210,7 +212,9 @@ def init_db():
             time TEXT NOT NULL,
             subject TEXT NOT NULL,
             room TEXT,
-            teacher_id INTEGER NOT NULL
+            teacher_id INTEGER NOT NULL,
+            year INTEGER,
+            batch INTEGER
         )
         """
     )
@@ -223,6 +227,10 @@ def init_db():
     _ensure_column("users", "batch", "INTEGER")
     _ensure_column("lectures", "year", "INTEGER")
     _ensure_column("lectures", "batch", "INTEGER")
+    _ensure_column("schedules", "year", "INTEGER")
+    _ensure_column("schedules", "batch", "INTEGER")
+    _ensure_column("resources", "year", "INTEGER")
+    _ensure_column("resources", "batch", "INTEGER")
 
     conn.commit()
     return conn

@@ -14,6 +14,8 @@ def render_resources(conn, user):
         with st.form("resource_form"):
             title = st.text_input("Resource Title")
             subject = st.text_input("Subject")
+            year = st.number_input("Year", min_value=1, max_value=5, step=1)
+            batch = st.number_input("Batch", min_value=1, max_value=10, step=1)
             file = st.file_uploader("Upload PDF/PPT", type=["pdf", "ppt", "pptx"])
             submitted = st.form_submit_button("Upload Resource")
 
@@ -27,17 +29,25 @@ def render_resources(conn, user):
 
                 conn.execute(
                     """
-                    INSERT INTO resources (title, subject, file_path, uploaded_by, created_at)
-                    VALUES (?, ?, ?, ?, ?)
+                    INSERT INTO resources (title, subject, file_path, uploaded_by, created_at, year, batch)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                     """,
-                    (title, subject, str(file_path), user["id"], now_iso()),
+                    (title, subject, str(file_path), user["id"], now_iso(), int(year), int(batch)),
                 )
                 conn.commit()
                 st.success("Resource uploaded.")
 
-    records = conn.execute(
-        "SELECT r.*, u.name as uploader FROM resources r LEFT JOIN users u ON r.uploaded_by = u.id ORDER BY created_at DESC"
-    ).fetchall()
+    student_year = user.get("year")
+    student_batch = user.get("batch")
+    if user.get("role_name") == "student" and student_year and student_batch:
+        records = conn.execute(
+            "SELECT r.*, u.name as uploader FROM resources r LEFT JOIN users u ON r.uploaded_by = u.id WHERE r.year = ? AND r.batch = ? ORDER BY created_at DESC",
+            (student_year, student_batch),
+        ).fetchall()
+    else:
+        records = conn.execute(
+            "SELECT r.*, u.name as uploader FROM resources r LEFT JOIN users u ON r.uploaded_by = u.id ORDER BY created_at DESC"
+        ).fetchall()
     if not records:
         st.info("No resources yet.")
         return
@@ -45,7 +55,7 @@ def render_resources(conn, user):
     df = rows_to_dataframe(records)
     df = add_datetime_columns(df)
 
-    display_cols = [c for c in ["title", "subject", "date", "time"] if c in df.columns]
+    display_cols = [c for c in ["title", "subject", "year", "batch", "date", "time"] if c in df.columns]
     if user.get("role_name") != "student" and "file_path" in df.columns:
         display_cols.append("file_path")
     st.dataframe(df[display_cols] if display_cols else df, use_container_width=True)
