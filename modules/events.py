@@ -48,12 +48,20 @@ def render_events(conn, user):
 
         event_id = st.selectbox("Register for Event", event_ids)
         if st.button("Register"):
-            try:
-                conn.execute(
-                    "INSERT INTO event_registrations (event_id, enrollment, created_at) VALUES (?, ?, ?)",
-                    (event_id, user["enrollment"], now_iso()),
-                )
-                conn.commit()
-                st.success("Registered successfully.")
-            except Exception:
-                st.warning("Already registered or invalid event.")
+            # Prevent duplicate registrations
+            existing = conn.execute(
+                "SELECT 1 FROM event_registrations WHERE event_id = ? AND enrollment = ?",
+                (event_id, user["enrollment"]),
+            ).fetchone()
+            if existing:
+                st.warning("You have already registered for this event.")
+            else:
+                try:
+                    conn.execute(
+                        "INSERT INTO event_registrations (event_id, enrollment, created_at) VALUES (?, ?, ?)",
+                        (event_id, user["enrollment"], now_iso()),
+                    )
+                    conn.commit()
+                    st.success("Registered successfully.")
+                except Exception as e:
+                    st.error(f"Could not register: {e}")
