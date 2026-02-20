@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
 
 from datetime import datetime, timedelta
+import time
 from uuid import uuid4
 import sqlite3
 
@@ -85,6 +86,7 @@ def _render_geolocation_block(use_mock: bool = True):
     st.session_state.setdefault("gps_request", False)
     if st.button("Get Real GPS Location", key="real_gps"):
         st.session_state.gps_request = True
+        st.session_state.gps_started_at = time.time()
 
     loc = None
     if st.session_state.gps_request:
@@ -112,17 +114,36 @@ def _render_geolocation_block(use_mock: bool = True):
                 key="get_location"
             )
 
+    # Decide whether to show warnings based on elapsed time since request
+    elapsed = time.time() - st.session_state.get("gps_started_at", 0) if st.session_state.get("gps_started_at") else 0
+    GPS_TIMEOUT = 10
+
     if loc and isinstance(loc, dict) and "lat" in loc and "lon" in loc:
         st.session_state.geo_location = loc
         st.session_state.gps_request = False
+        st.session_state.pop("gps_started_at", None)
         st.success("GPS captured")
     elif st.session_state.gps_request and loc is not None:
+        # If JS returned an error object immediately, show it
         if isinstance(loc, dict) and loc.get("error"):
             st.warning(f"Could not read GPS: {loc['error']}")
+            st.session_state.gps_request = False
+            st.session_state.pop("gps_started_at", None)
         else:
-            st.warning("Could not read GPS. Check browser permissions or use Mock/Manual GPS.")
+            # Non-dict or unexpected result; if timeout passed, warn
+            if elapsed >= GPS_TIMEOUT:
+                st.warning("Could not read GPS. Check browser permissions or use Mock/Manual GPS.")
+                st.session_state.gps_request = False
+                st.session_state.pop("gps_started_at", None)
+            else:
+                st.info("Waiting for GPS...")
     elif st.session_state.gps_request and loc is None:
-        st.warning("Could not read GPS. No location data returned.")
+        if elapsed >= GPS_TIMEOUT:
+            st.warning("Could not read GPS. No location data returned.")
+            st.session_state.gps_request = False
+            st.session_state.pop("gps_started_at", None)
+        else:
+            st.info("Waiting for GPS...")
 
 
 def _get_geo_from_query():
