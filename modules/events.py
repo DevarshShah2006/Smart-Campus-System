@@ -37,45 +37,33 @@ def render_events(conn, user):
     df = rows_to_dataframe(events)
 
     display_cols = [c for c in ["id", "title", "event_date", "location"] if c in df.columns]
+    # show a simple table for quick overview
     st.dataframe(df[display_cols] if display_cols else df, use_container_width=True)
 
-    if user.get("role_name") == "student":
-        if events and hasattr(events[0], "keys"):
-            event_ids = [row["id"] for row in events]
-        else:
-            # columns order: id, title, description, event_date, location, created_by, created_at
-            event_ids = [row[0] for row in events]
+    # Fetch facility email from settings or use a sensible default
+    row = conn.execute("SELECT value FROM system_settings WHERE key = ?", ("facility_email",)).fetchone()
+    facility_email = row[0] if row and len(row) > 0 else "facility@college.edu"
 
-        event_id = st.selectbox("Register for Event", event_ids)
-        if st.button("Register"):
-            # Prevent duplicate registrations
-            existing = conn.execute(
-                "SELECT 1 FROM event_registrations WHERE event_id = ? AND enrollment = ?",
-                (event_id, user["enrollment"]),
-            ).fetchone()
-            if existing:
-                st.warning("You have already registered for this event.")
-            else:
-                try:
-                    conn.execute(
-                        "INSERT INTO event_registrations (event_id, enrollment, created_at) VALUES (?, ?, ?)",
-                        (event_id, user["enrollment"], now_iso()),
-                    )
-                    conn.commit()
-                        st.success("Registered successfully.")
-                        # Show current registrations for this user to confirm
-                        regs = conn.execute(
-                            "SELECT er.id, e.title, er.created_at FROM event_registrations er JOIN events e ON er.event_id=e.id WHERE er.enrollment = ? ORDER BY er.created_at DESC",
-                            (user["enrollment"],),
-                        ).fetchall()
-                        if regs:
-                            st.markdown("**Your Registrations:**")
-                            for r in regs:
-                                if hasattr(r, 'keys'):
-                                    st.write(f"- {r['title']} (registered {r['created_at']})")
-                                else:
-                                    st.write(f"- {r[1]} (registered {r[2]})")
-                        else:
-                            st.info("No registrations found for your account.")
-                except Exception as e:
-                    st.error(f"Could not register: {e}")
+    # Render events as notice-like cards with registration instructions via email
+    st.markdown("---")
+    st.subheader("Event Details & Registration")
+    for ev in events:
+        if hasattr(ev, "keys"):
+            eid = ev["id"]
+            title = ev["title"]
+            desc = ev.get("description", "")
+            date = ev.get("event_date", "")
+            location = ev.get("location", "")
+        else:
+            # column order: id, title, description, event_date, location, created_by, created_at
+            eid, title, desc, date, location = ev[0], ev[1], ev[2], ev[3], ev[4]
+
+        safe_subject = title.replace(' ', '%20')
+        st.markdown(f"""
+        <div style='padding:1rem; margin:0.5rem 0; border-left:4px solid #2b6cb0; background: rgba(255,255,255,0.02); border-radius:6px;'>
+            <h3 style='margin:0 0 0.25rem 0;'>{title}</h3>
+            <p style='margin:0.25rem 0;'>{desc}</p>
+            <p style='color:#95a5a6; margin:0.25rem 0;'><strong>Date:</strong> {date} &nbsp;|&nbsp; <strong>Location:</strong> {location}</p>
+            <p style='margin-top:0.5rem;'>To register for this event, please email <a href='mailto:{facility_email}?subject=Register%20for%20{safe_subject}' style='color:#9ad1ff'>{facility_email}</a> with your name and enrollment number.</p>
+        </div>
+        """, unsafe_allow_html=True)
