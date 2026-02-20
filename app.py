@@ -192,7 +192,6 @@ else:
                 ("👥", "User Management"),
                 ("📢", "Notices"),
                 ("📅", "Schedule"),
-                ("⭐", "Feedback"),
                 ("🔧", "Issues"),
                 ("🔍", "Lost & Found"),
                 ("🎉", "Events"),
@@ -226,8 +225,6 @@ else:
             render_notice_board(conn, user)
         elif page == "Schedule":
             render_schedule(conn, user)
-        elif page == "Feedback":
-            render_feedback(conn, user)
         elif page == "Issues":
             render_issues(conn, user)
         elif page == "Lost & Found":
