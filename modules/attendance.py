@@ -828,7 +828,15 @@ def render_attendance_override(conn, user=None):
 
 def render_attendance_analytics(conn):
     st.subheader("Attendance Analytics")
-    records = conn.execute("SELECT status, timestamp FROM attendance").fetchall()
+    # If a teacher is logged in, show only attendance for their lectures
+    user = st.session_state.get("user")
+    if user and user.get("role_name") == "teacher":
+        records = conn.execute(
+            "SELECT a.status, a.timestamp FROM attendance a JOIN lectures l ON a.session_id = l.session_id WHERE l.teacher_id = ?",
+            (user.get("id"),),
+        ).fetchall()
+    else:
+        records = conn.execute("SELECT status, timestamp FROM attendance").fetchall()
     if not records:
         st.info("No attendance data yet.")
         return
