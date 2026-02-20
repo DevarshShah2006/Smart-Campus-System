@@ -37,11 +37,13 @@ def render_feedback(conn, user):
             time_part = f"{str(start_time)[11:16]} - {str(end_time)[11:16]}"
         return f"{subject}   |   {room}   |   {date_part}   |   {time_part}"
 
-    session_id = st.selectbox(
-        "Lecture Session",
-        list(lecture_map.keys()),
-        format_func=_lecture_label,
-    )
+    session_id = None
+    if user.get("role_name") == "student":
+        session_id = st.selectbox(
+            "Lecture Session",
+            list(lecture_map.keys()),
+            format_func=_lecture_label,
+        )
 
     if user.get("role_name") == "student":
         with st.form("feedback_form"):
