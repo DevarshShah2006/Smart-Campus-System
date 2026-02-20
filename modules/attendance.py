@@ -15,6 +15,7 @@ from core.utils import haversine_distance, now_iso, parse_iso, add_minutes, now_
 from core.qr import generate_qr
 
 APP_BASE_URL = "https://smart-campus-system-4rvhza22xqtxanom66dczk.streamlit.app"
+CUT_OFF_DATE = "2026-02-20"
 
 
 # Initialize session state for GPS location
@@ -553,19 +554,21 @@ def render_student_attendance(conn, user):
             matching_lectures = fresh_conn.execute(
                 """
                 SELECT * FROM lectures
-                WHERE (year IS NULL OR year = ?) AND (batch IS NULL OR batch = ?)
+                WHERE (year IS NULL OR year = ?) AND (batch IS NULL OR batch = ?) AND date(start_time) <= ?
                 ORDER BY start_time DESC LIMIT 20
                 """,
-                (student_year, student_batch),
+                (student_year, student_batch, CUT_OFF_DATE),
             ).fetchall()
         else:
             matching_lectures = fresh_conn.execute(
-                "SELECT * FROM lectures ORDER BY start_time DESC LIMIT 20"
+                "SELECT * FROM lectures WHERE date(start_time) <= ? ORDER BY start_time DESC LIMIT 20",
+                (CUT_OFF_DATE,)
             ).fetchall()
         
         # Get all lectures for override search
         all_lectures = fresh_conn.execute(
-            "SELECT * FROM lectures ORDER BY start_time DESC LIMIT 50"
+            "SELECT * FROM lectures WHERE date(start_time) <= ? ORDER BY start_time DESC LIMIT 50",
+            (CUT_OFF_DATE,),
         ).fetchall()
     finally:
         fresh_conn.close()
