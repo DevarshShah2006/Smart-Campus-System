@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 
 from core.utils import now_iso, rows_to_dataframe, add_datetime_columns
+from core.db import DB_PATH
 
 
 def render_lost_found(conn, user):
@@ -18,7 +19,7 @@ def render_lost_found(conn, user):
         if not (title and description and contact):
             st.error("All fields are required.")
         else:
-            conn.execute(
+            cur = conn.execute(
                 """
                 INSERT INTO lost_found (item_type, title, description, contact, posted_by, created_at, status)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -26,7 +27,8 @@ def render_lost_found(conn, user):
                 (item_type, title, description, contact, user["id"], now_iso(), "Open"),
             )
             conn.commit()
-            st.success("Post created.")
+            last_id = cur.lastrowid if hasattr(cur, "lastrowid") else None
+            st.success(f"Post created. DB: {DB_PATH} | id={last_id}")
 
     items = conn.execute("SELECT * FROM lost_found ORDER BY created_at DESC").fetchall()
     if not items:

@@ -8,9 +8,8 @@ from core.utils import summarize_counts, to_chart_data
 def render_analytics(conn):
     st.subheader("Analytics & Insights")
 
-    tab1, tab2, tab3 = st.tabs([
+    tab1, tab2 = st.tabs([
         "Attendance Trends",
-        "Department Distribution",
         "Issue Resolution",
     ])
 
@@ -26,20 +25,7 @@ def render_analytics(conn):
             st.pyplot(fig)
         else:
             st.info("No attendance data yet.")
-
     with tab2:
-        data = conn.execute("SELECT department FROM users WHERE enrollment IS NOT NULL").fetchall()
-        if data:
-            summary = summarize_counts([dict(row) for row in data], "department")
-            labels, counts = to_chart_data(summary)
-            fig, ax = plt.subplots()
-            ax.pie(counts, labels=labels, autopct="%1.1f%%")
-            ax.set_title("Students by Department")
-            st.pyplot(fig)
-        else:
-            st.info("No student data yet.")
-
-    with tab3:
         data = conn.execute("SELECT category, status FROM issues").fetchall()
         if data:
             if data and hasattr(data[0], "keys"):

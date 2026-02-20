@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 
 from core.utils import now_iso, rows_to_dataframe, add_datetime_columns
+from core.db import DB_PATH
 
 
 def render_issues(conn, user):
@@ -18,7 +19,7 @@ def render_issues(conn, user):
             if not (title and description):
                 st.error("Title and description are required.")
             else:
-                conn.execute(
+                cur = conn.execute(
                     """
                     INSERT INTO issues (title, category, description, status, reported_by, created_at)
                     VALUES (?, ?, ?, ?, ?, ?)
@@ -26,7 +27,8 @@ def render_issues(conn, user):
                     (title, category, description, "Open", user["id"], now_iso()),
                 )
                 conn.commit()
-                st.success("Issue reported.")
+                last_id = cur.lastrowid if hasattr(cur, "lastrowid") else None
+                st.success(f"Issue reported. DB: {DB_PATH} | id={last_id}")
 
     issues = conn.execute("SELECT * FROM issues ORDER BY created_at DESC").fetchall()
     if not issues:
