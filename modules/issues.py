@@ -28,7 +28,7 @@ def render_issues(conn, user):
                 )
                 conn.commit()
                 last_id = cur.lastrowid if hasattr(cur, "lastrowid") else None
-                st.success(f"Issue reported. DB: {DB_PATH} | id={last_id}")
+                st.success(f"Issue reported.")
 
     issues = conn.execute("SELECT * FROM issues ORDER BY created_at DESC").fetchall()
     if not issues:

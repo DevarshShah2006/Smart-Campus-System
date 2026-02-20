@@ -28,7 +28,7 @@ def render_lost_found(conn, user):
             )
             conn.commit()
             last_id = cur.lastrowid if hasattr(cur, "lastrowid") else None
-            st.success(f"Post created. DB: {DB_PATH} | id={last_id}")
+            st.success(f"Post created.")
 
     items = conn.execute("SELECT * FROM lost_found ORDER BY created_at DESC").fetchall()
     if not items:
