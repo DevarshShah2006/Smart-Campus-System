@@ -336,53 +336,25 @@ def render_teacher_attendance(conn, user):
                         if qr_path and qr_path.exists():
                             # Verify file is real and get file size
                             file_size = qr_path.stat().st_size
-                            st.image(str(qr_path), caption=f"Scan to mark attendance for {subject}", width=300)
                             st.success(f"✅ QR Code generated successfully!")
-
-                            if st.button("🔍 View Fullscreen QR", key=f"full_qr_{session_id}"):
-                                st.session_state.full_qr_path = str(qr_path)
-                                st.session_state.full_qr_caption = f"Scan to mark attendance for {subject}"
-                                st.session_state.show_full_qr = True
-
-                            # Show verification details
-                            with st.expander("🔍 QR Code Details", expanded=False):
-                                st.caption(f"📁 File Path: {qr_path}")
-                                st.caption(f"📊 File Size: {file_size} bytes")
-                                st.caption(f"✅ File Exists: True")
-                                st.caption(f"📍 URL Encoded: {attendance_url}")
+                            st.session_state["last_qr_info"] = {
+                                "session_id": session_id,
+                                "subject": subject,
+                                "room": room,
+                                "date": date.isoformat(),
+                                "time_range": f"{start_time.strftime('%H:%M')} - {end_dt.time().strftime('%H:%M')}",
+                                "attendance_url": attendance_url,
+                                "radius_m": radius_m,
+                                "late_after_min": late_after_min,
+                                "location": f"({lat:.6f}, {lon:.6f})",
+                                "qr_path": str(qr_path),
+                                "file_size": file_size,
+                            }
                         else:
                             st.error("❌ QR file not found after generation")
                     except Exception as e:
                         st.error(f"❌ Error generating QR: {str(e)}")
                         st.info(f"📱 Share this URL instead: {attendance_url}")
-
-                with col2:
-                    st.markdown("### 🔗 Direct Link")
-                    st.code(attendance_url, language="text")
-
-                    # Regenerate QR if needed
-                    if st.button("🔄 Regenerate QR", help="Generate a new QR code"):
-                        try:
-                            qr_path = generate_qr(attendance_url)
-                            if qr_path.exists():
-                                file_size = qr_path.stat().st_size
-                                st.success(f"✅ QR regenerated! ({file_size} bytes)")
-                                st.rerun()
-                            else:
-                                st.error("❌ QR generation failed")
-                        except Exception as e:
-                            st.error(f"Failed to regenerate: {e}")
-
-                    st.markdown(f"""
-                    **Session Details:**
-                    - 📚 Subject: {subject}
-                    - 🏫 Room: {room}
-                    - 📅 Date: {date}
-                    - ⏰ Time: {start_time} - {end_dt.time()}
-                    - 📍 Radius: {radius_m}m
-                    - ⏳ Late after: {late_after_min} min
-                    - 🌍 Location: ({lat:.6f}, {lon:.6f})
-                    """)
 
                 # Reset helpers
                 st.session_state["force_show_form"] = False
@@ -397,6 +369,63 @@ def render_teacher_attendance(conn, user):
                 st.error(f"❌ Error creating session: {str(e)}")
 
         # Fullscreen QR display (outside submission block so it persists across reruns)
+        qr_info = st.session_state.get("last_qr_info")
+        if qr_info:
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("### 📱 QR Code")
+                st.image(
+                    qr_info["qr_path"],
+                    caption=f"Scan to mark attendance for {qr_info['subject']}",
+                    width=300,
+                )
+                if st.button("🔍 View Fullscreen QR", key=f"full_qr_{qr_info['session_id']}"):
+                    st.session_state.full_qr_path = qr_info["qr_path"]
+                    st.session_state.full_qr_caption = f"Scan to mark attendance for {qr_info['subject']}"
+                    st.session_state.show_full_qr = True
+
+                with st.expander("🔍 QR Code Details", expanded=False):
+                    st.caption(f"📁 File Path: {qr_info['qr_path']}")
+                    st.caption(f"📊 File Size: {qr_info['file_size']} bytes")
+                    st.caption("✅ File Exists: True")
+                    st.caption(f"📍 URL Encoded: {qr_info['attendance_url']}")
+
+            with col2:
+                st.markdown("### 🔗 Direct Link")
+                st.code(qr_info["attendance_url"], language="text")
+
+                if st.button(
+                    "🔄 Regenerate QR",
+                    key=f"regen_qr_{qr_info['session_id']}",
+                    help="Generate a new QR code",
+                ):
+                    try:
+                        new_qr_path = generate_qr(qr_info["attendance_url"])
+                        new_file_size = new_qr_path.stat().st_size
+                        qr_info = {
+                            **qr_info,
+                            "qr_path": str(new_qr_path),
+                            "file_size": new_file_size,
+                        }
+                        st.session_state["last_qr_info"] = qr_info
+                        if st.session_state.get("show_full_qr"):
+                            st.session_state.full_qr_path = qr_info["qr_path"]
+                        st.success(f"✅ QR regenerated! ({new_file_size} bytes)")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Failed to regenerate: {e}")
+
+                st.markdown(f"""
+                **Session Details:**
+                - 📚 Subject: {qr_info['subject']}
+                - 🏫 Room: {qr_info['room']}
+                - 📅 Date: {qr_info['date']}
+                - ⏰ Time: {qr_info['time_range']}
+                - 📍 Radius: {qr_info['radius_m']}m
+                - ⏳ Late after: {qr_info['late_after_min']} min
+                - 🌍 Location: {qr_info['location']}
+                """)
+
         if st.session_state.get("show_full_qr") and st.session_state.get("full_qr_path"):
             st.markdown("---")
             st.markdown("### 📱 QR Code (Fullscreen)")
