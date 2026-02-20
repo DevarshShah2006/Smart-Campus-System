@@ -47,7 +47,6 @@ def _sync_geo_from_url():
         except (ValueError, TypeError):
             pass
 
-# GPS Message Handler - Receives GPS from JavaScript via postMessage
 if "gps_message" not in st.session_state:
     st.session_state.gps_message = None
 
