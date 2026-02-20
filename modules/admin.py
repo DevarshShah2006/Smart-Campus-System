@@ -49,17 +49,17 @@ def render_admin_dashboard(conn, user):
     
     with col1:
         if st.button("👥 Manage Users", use_container_width=True):
-            st.session_state.admin_page = "users"
+            st.session_state.current_page = "User Management"
             st.rerun()
     
     with col2:
         if st.button("📊 View Analytics", use_container_width=True):
-            st.session_state.admin_page = "analytics"
+            st.session_state.current_page = "Analytics"
             st.rerun()
     
     with col3:
         if st.button("⚙️ System Settings", use_container_width=True):
-            st.session_state.admin_page = "settings"
+            st.session_state.current_page = "System Settings"
             st.rerun()
     
     st.markdown("---")
