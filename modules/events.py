@@ -62,6 +62,20 @@ def render_events(conn, user):
                         (event_id, user["enrollment"], now_iso()),
                     )
                     conn.commit()
-                    st.success("Registered successfully.")
+                        st.success("Registered successfully.")
+                        # Show current registrations for this user to confirm
+                        regs = conn.execute(
+                            "SELECT er.id, e.title, er.created_at FROM event_registrations er JOIN events e ON er.event_id=e.id WHERE er.enrollment = ? ORDER BY er.created_at DESC",
+                            (user["enrollment"],),
+                        ).fetchall()
+                        if regs:
+                            st.markdown("**Your Registrations:**")
+                            for r in regs:
+                                if hasattr(r, 'keys'):
+                                    st.write(f"- {r['title']} (registered {r['created_at']})")
+                                else:
+                                    st.write(f"- {r[1]} (registered {r[2]})")
+                        else:
+                            st.info("No registrations found for your account.")
                 except Exception as e:
                     st.error(f"Could not register: {e}")
