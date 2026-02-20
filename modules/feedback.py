@@ -79,10 +79,15 @@ def render_feedback(conn, user):
     if records:
         df = rows_to_dataframe(records)
 
-        # Add readable date/time columns
-        if "start_time" in df.columns:
-            df["date"] = pd.to_datetime(df["start_time"], errors="coerce").dt.date
-            df["time"] = df["start_time"].astype(str).str.slice(11, 16) + " - " + df["end_time"].astype(str).str.slice(11, 16)
+        df["subject"] = df.get("subject", pd.Series(dtype="object")).fillna("Unknown")
+        df["room"] = df.get("room", pd.Series(dtype="object")).fillna("TBD")
+        df["start_time"] = pd.to_datetime(df.get("start_time"), errors="coerce")
+        df["end_time"] = pd.to_datetime(df.get("end_time"), errors="coerce")
+        fallback = pd.to_datetime(df.get("created_at"), errors="coerce")
+        df["date"] = df["start_time"].dt.date.fillna(fallback.dt.date)
+        start_fmt = df["start_time"].dt.strftime("%H:%M")
+        end_fmt = df["end_time"].dt.strftime("%H:%M")
+        df["time"] = start_fmt.fillna("--:--") + " - " + end_fmt.fillna("--:--")
 
         display_cols = [
             c for c in ["session_id", "subject", "room", "date", "time", "rating", "comments"]
